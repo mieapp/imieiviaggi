@@ -154,11 +154,10 @@ async function disegnaCopertina(doc, dati, tutteLeTappe, onProgresso) {
 
 // --- Mappa reale (Geoapify Static Maps API) con marker e percorso colorati per giorno ---
 //
-// IMPORTANTE: questa chiave è un SEGNAPOSTO. Prima del primo deploy va sostituita
-// con una chiave Geoapify dedicata e separata da quella di Diario di viaggio
-// (decisione 31/07/2026, vedi sezione 4 della spec), con restrizione referrer
-// sul dominio GitHub Pages di questo progetto.
-const GEOAPIFY_API_KEY = "INSERIRE_QUI_LA_NUOVA_CHIAVE_GEOAPIFY_DEDICATA";
+// Chiave Geoapify dedicata a questo progetto (progetto separato su un account
+// non collegato a Diario di viaggio, restrizione referrer su mieapp.github.io),
+// decisione 31/07/2026, vedi sezione 4 della spec.
+const GEOAPIFY_API_KEY = "47220c41655243bf9338cdab046da501";
 
 function coloreAUrl(colorArray) {
   const hex = colorArray.map(c => c.toString(16).padStart(2, "0")).join("");
