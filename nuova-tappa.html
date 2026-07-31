@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nuova tappa - I miei viaggi</title>
+<link rel="stylesheet" href="css/stile.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icona-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icona-180.png">
+<meta name="theme-color" content="#C97B3D">
+</head>
+<body>
+
+<div class="app">
+
+  <div class="app-header">
+    <span style="color:var(--testo-header);cursor:pointer;" id="btn-annulla">Annulla</span>
+    <h1 style="font-size:17px;" id="titolo-pagina">Nuova tappa</h1>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <span style="color:var(--blu-petrolio);font-weight:600;cursor:pointer;" id="btn-salva">Salva</span>
+    </div>
+  </div>
+
+  <div class="contenuto-centrato" style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+    <!-- Posizione -->
+    <div class="card">
+      <p style="font-size:13px;font-weight:500;margin-bottom:8px;">Posizione</p>
+      <button id="btn-gps" style="width:100%;height:40px;border-radius:8px;background:var(--ambra-chiaro);border:none;color:var(--ambra-scuro);font-weight:500;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;margin-bottom:8px;">📍 Usa posizione attuale</button>
+      <p id="gps-stato" style="font-size:12px;color:var(--testo-terziario);display:none;margin-bottom:8px;"></p>
+      <div id="risultati-poi" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+      <input type="text" id="ricerca-indirizzo" placeholder="oppure cerca un indirizzo o un luogo">
+      <div id="risultati-ricerca" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;"></div>
+      <p id="posizione-scelta" style="margin-top:8px;font-size:13px;color:var(--verde-scuro);display:none;"></p>
+    </div>
+
+    <!-- Tipo -->
+    <div>
+      <p style="font-size:13px;font-weight:500;margin-bottom:8px;">Tipo</p>
+      <div id="chip-tipi" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- Titolo -->
+    <div>
+      <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Titolo</label>
+      <input type="text" id="titolo" placeholder="es. Bryggen, Pausa caffè da Ida">
+    </div>
+
+    <!-- Orario -->
+    <div>
+      <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Orario</label>
+      <input type="time" id="orario-tappa">
+    </div>
+
+    <!-- Nota -->
+    <div>
+      <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Nota</label>
+      <textarea id="nota" placeholder="Cosa hai visto, cosa vuoi ricordare..."></textarea>
+    </div>
+
+    <!-- Foto -->
+    <div>
+      <p style="font-size:13px;font-weight:500;margin-bottom:8px;">Foto</p>
+      <div id="anteprima-foto" style="display:none;margin-bottom:10px;position:relative;">
+        <img id="img-anteprima" style="width:100%;border-radius:10px;display:block;">
+        <span id="btn-rimuovi-foto" style="position:absolute;top:8px;right:8px;background:rgba(27,46,53,0.75);color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;">✕</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="btn-scatta" style="flex:1;height:64px;border-radius:10px;background:#FFFFFF;border:0.5px dashed var(--bordo);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;">
+          <span style="font-size:18px;">📷</span><span style="font-size:11px;color:var(--testo-terziario);">Scatta</span>
+        </button>
+        <button type="button" id="btn-carica" style="flex:1;height:64px;border-radius:10px;background:#FFFFFF;border:0.5px dashed var(--bordo);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;">
+          <span style="font-size:18px;">🖼️</span><span style="font-size:11px;color:var(--testo-terziario);">Carica</span>
+        </button>
+        <button type="button" id="btn-cerca-foto" style="flex:1;height:64px;border-radius:10px;background:#FFFFFF;border:0.5px dashed var(--bordo);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;">
+          <span style="font-size:18px;">🔍</span><span style="font-size:11px;color:var(--testo-terziario);">Cerca online</span>
+        </button>
+      </div>
+      <input type="file" id="input-scatta" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="input-carica" accept="image/*" style="display:none">
+      <p id="foto-stato" style="font-size:12px;color:var(--testo-terziario);margin-top:6px;display:none;"></p>
+
+      <div id="pannello-ricerca-foto" style="display:none;margin-top:10px;padding:12px;background:var(--carta-chiara);border-radius:10px;">
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" id="input-ricerca-foto" placeholder="Cosa cerchiamo?" style="flex:1;">
+          <button type="button" id="btn-cerca-foto-avvia" style="padding:0 14px;border-radius:8px;background:var(--blu-petrolio);color:var(--carta-chiara);border:none;font-size:13px;">Cerca</button>
+        </div>
+        <div id="risultati-foto-wikimedia" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;"></div>
+        <p id="foto-wikimedia-stato" style="font-size:12px;color:var(--testo-terziario);margin-top:6px;"></p>
+      </div>
+    </div>
+
+    <p id="errore" style="color:var(--rosso-mattone);font-size:13px;display:none;"></p>
+
+    <button id="btn-elimina" style="display:none;width:100%;height:44px;border-radius:var(--raggio-bottone);background:transparent;border:1px solid var(--rosso-mattone);color:var(--rosso-mattone);font-weight:500;font-size:14px;cursor:pointer;">Elimina tappa</button>
+
+  </div>
+
+</div>
+
+<script type="module">
+  import { ottieniViaggio, ottieniTappa, creaTappa, aggiornaTappa, eliminaTappa } from "./js/db-locale.js";
+
+  const params = new URLSearchParams(window.location.search);
+  const viaggioId = params.get('viaggioId');
+  const dataGiorno = params.get('data');
+  const tappaId = params.get('tappaId'); // presente solo in modalità modifica
+
+  if (!viaggioId || !dataGiorno) {
+    alert("Parametri mancanti: viaggio o giorno non specificato.");
+    window.location.href = "index.html";
+  }
+
+  if (tappaId) {
+    document.getElementById('titolo-pagina').textContent = "Modifica tappa";
+    document.getElementById('btn-elimina').style.display = "block";
+  } else {
+    // Precompila con l'ora attuale, comodo per l'inserimento veloce sul momento
+    const adesso = new Date();
+    document.getElementById('orario-tappa').value =
+      `${String(adesso.getHours()).padStart(2, '0')}:${String(adesso.getMinutes()).padStart(2, '0')}`;
+  }
+
+  document.getElementById('btn-annulla').addEventListener('click', () => {
+    window.location.href = `viaggio.html?id=${viaggioId}&data=${dataGiorno}`;
+  });
+
+  let tipoSelezionato = null;
+  let posizioneScelta = null; // { lat, lng }
+  let localitaScelta = null; // { citta, paese } | null
+
+  const TIPI_PREDEFINITI = [
+    { nome: "Visita", icona: "🏛️", colore: "#5C7A6E" },
+    { nome: "Museo", icona: "🖼️", colore: "#A88B5C" },
+    { nome: "Pernottamento", icona: "🛏️", colore: "#C97B3D" },
+    { nome: "Ristorante", icona: "🍽️", colore: "#8B3A3A" },
+    { nome: "Bar/Colazione", icona: "☕", colore: "#D9B382" },
+    { nome: "Sosta", icona: "🪑", colore: "#D8D0BC" },
+    { nome: "Trasporto", icona: "✈️", colore: "#1B2E35" },
+    { nome: "Rifornimento", icona: "⛽", colore: "#4A5A6E" },
+    { nome: "Panorama", icona: "🏔️", colore: "#7A9B8E" },
+    { nome: "Natura", icona: "🥾", colore: "#3E5A4E" },
+    { nome: "Spiaggia", icona: "🌊", colore: "#6E9BB0" },
+    { nome: "Terme/Benessere", icona: "♨️", colore: "#6EA89B" },
+    { nome: "Shopping", icona: "🛍️", colore: "#B0703E" },
+    { nome: "Mercato", icona: "🧺", colore: "#B08C3E" },
+    { nome: "Luogo di culto", icona: "🕊️", colore: "#8B7355" },
+    { nome: "Evento", icona: "🎫", colore: "#8E6E9B" },
+    { nome: "Vita notturna", icona: "🍸", colore: "#5C4A8E" },
+    { nome: "Info turistiche", icona: "ℹ️", colore: "#4A7A8E" },
+    { nome: "Emergenza", icona: "🚨", colore: "#A83232" },
+    { nome: "Altro", icona: "✳️", colore: "#8B8577" }
+  ];
+
+  caricaDatiViaggio().then(() => {
+    if (tappaId) caricaTappaEsistente();
+  });
+
+  async function caricaTappaEsistente() {
+    const t = await ottieniTappa(tappaId);
+    if (!t) {
+      alert("Tappa non trovata.");
+      window.location.href = `viaggio.html?id=${viaggioId}&data=${dataGiorno}`;
+      return;
+    }
+
+    document.getElementById('titolo').value = t.titolo || "";
+    document.getElementById('nota').value = t.nota || "";
+
+    if (t.orario) {
+      const d = new Date(t.orario);
+      document.getElementById('orario-tappa').value =
+        `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+
+    posizioneScelta = t.posizione;
+    localitaScelta = t.localita || null;
+    document.getElementById('ricerca-indirizzo').value = t.titolo || "";
+    const p = document.getElementById('posizione-scelta');
+    p.textContent = `Posizione selezionata: ${posizioneScelta.lat.toFixed(5)}, ${posizioneScelta.lng.toFixed(5)}`;
+    p.style.display = "block";
+
+    if (t.foto) {
+      fotoBase64 = t.foto;
+      mostraAnteprimaFoto(t.foto);
+    }
+
+    // Marca il tipo corrispondente come selezionato tra le chip già disegnate
+    document.querySelectorAll('#chip-tipi .chip').forEach(chip => {
+      if (chip.textContent.trim() === `${t.tipoIcona} ${t.tipo}`) {
+        chip.classList.add('attivo');
+        tipoSelezionato = { nome: t.tipo, icona: t.tipoIcona, colore: t.tipoColore };
+      }
+    });
+  }
+
+  async function caricaDatiViaggio() {
+    const viaggio = await ottieniViaggio(viaggioId);
+    const tipiPersonalizzati = (viaggio && viaggio.tipiPersonalizzati) || [];
+    disegnaChipTipi([...TIPI_PREDEFINITI, ...tipiPersonalizzati]);
+  }
+
+  function disegnaChipTipi(tipi) {
+    const contenitore = document.getElementById('chip-tipi');
+    tipi.forEach(tipo => {
+      const chip = document.createElement('span');
+      chip.className = "chip";
+      chip.textContent = `${tipo.icona} ${tipo.nome}`;
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#chip-tipi .chip').forEach(c => c.classList.remove('attivo'));
+        chip.classList.add('attivo');
+        tipoSelezionato = tipo;
+      });
+      contenitore.appendChild(chip);
+    });
+  }
+
+  // --- GPS one-shot + suggerimento POI (Overpass) ---
+
+  const raggioRicercaPOI = 180; // metri, come deciso nel brainstorming
+
+  document.getElementById('btn-gps').addEventListener('click', () => {
+    const statoEl = document.getElementById('gps-stato');
+    statoEl.style.display = "block";
+    statoEl.style.color = "var(--testo-terziario)";
+    statoEl.textContent = "Rilevamento posizione in corso...";
+    document.getElementById('risultati-poi').innerHTML = "";
+
+    if (!navigator.geolocation) {
+      statoEl.style.color = "var(--rosso-mattone)";
+      statoEl.textContent = "Il tuo browser non supporta la geolocalizzazione.";
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (posizione) => {
+        const lat = posizione.coords.latitude;
+        const lng = posizione.coords.longitude;
+        posizioneScelta = { lat, lng };
+
+        statoEl.textContent = `Posizione rilevata: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Cerco punti di interesse vicini...`;
+        document.getElementById('ricerca-indirizzo').value = "";
+        document.getElementById('risultati-ricerca').innerHTML = "";
+
+        const p = document.getElementById('posizione-scelta');
+        p.textContent = `Posizione selezionata: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        p.style.display = "block";
+
+        cercaLocalitaReverse(lat, lng);
+        await cercaPOIVicini(lat, lng);
+        statoEl.style.display = "none";
+      },
+      (errore) => {
+        statoEl.style.color = "var(--rosso-mattone)";
+        if (errore.code === errore.PERMISSION_DENIED) {
+          statoEl.textContent = "Permesso posizione negato. Abilitalo nelle impostazioni del browser.";
+        } else {
+          statoEl.textContent = "Impossibile rilevare la posizione. Riprova o cerca un indirizzo.";
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+
+  async function cercaLocalitaReverse(lat, lng) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+      const risposta = await fetch(url, { headers: { "Accept-Language": "it" } });
+      const dati = await risposta.json();
+      const indirizzo = dati.address || {};
+      localitaScelta = {
+        citta: indirizzo.city || indirizzo.town || indirizzo.village || indirizzo.hamlet || null,
+        paese: indirizzo.country || null
+      };
+    } catch (err) {
+      console.warn("Reverse geocoding non riuscito, localita non disponibile per questa tappa:", err);
+      localitaScelta = null;
+    }
+  }
+
+  function distanzaMetri(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad;
+    const dLon = (lon2 - lon1) * rad;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  async function cercaPOIVicini(lat, lng) {
+    const contenitore = document.getElementById('risultati-poi');
+    contenitore.innerHTML = "";
+
+    const overpassQuery = `[out:json][timeout:15];(node(around:${raggioRicercaPOI},${lat},${lng})[name];way(around:${raggioRicercaPOI},${lat},${lng})[name];);out center 10;`;
+    const mirror = [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter"
+    ];
+
+    let dati = null;
+    for (const url of mirror) {
+      try {
+        const risposta = await fetch(url, { method: "POST", body: overpassQuery });
+        if (!risposta.ok) continue; // prova il mirror successivo
+        dati = await risposta.json();
+        break;
+      } catch (err) {
+        console.warn(`Overpass mirror non raggiungibile (${url}):`, err);
+      }
+    }
+
+    if (!dati) {
+      contenitore.innerHTML = `<p style="font-size:12px;color:var(--testo-terziario);">Connessione assente o server non raggiungibile. Scrivi tu il titolo.</p>`;
+      return;
+    }
+
+    try {
+      const elementi = (dati.elements || [])
+        .filter(el => el.tags && el.tags.name)
+        .map(el => {
+          const elLat = el.lat || (el.center && el.center.lat);
+          const elLon = el.lon || (el.center && el.center.lon);
+          return {
+            nome: el.tags.name,
+            distanza: distanzaMetri(lat, lng, elLat, elLon)
+          };
+        })
+        .sort((a, b) => a.distanza - b.distanza)
+        .slice(0, 5);
+
+      if (elementi.length === 0) {
+        contenitore.innerHTML = `<p style="font-size:12px;color:var(--testo-terziario);">Nessun punto di interesse trovato nelle vicinanze. Scrivi tu il titolo.</p>`;
+        return;
+      }
+
+      elementi.forEach(el => {
+        const voce = document.createElement('div');
+        voce.style.cssText = "padding:8px 10px;background:var(--carta-chiara);border-radius:8px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;";
+        voce.innerHTML = `<span>${el.nome}</span><span class="mono">${Math.round(el.distanza)}m</span>`;
+        voce.addEventListener('click', () => {
+          document.getElementById('titolo').value = el.nome;
+          contenitore.innerHTML = "";
+        });
+        contenitore.appendChild(voce);
+      });
+    } catch (err) {
+      console.error("Errore ricerca POI:", err);
+      contenitore.innerHTML = `<p style="font-size:12px;color:var(--testo-terziario);">Ricerca punti di interesse non riuscita. Scrivi tu il titolo.</p>`;
+    }
+  }
+
+  // --- Ricerca indirizzo (Nominatim) ---
+
+  let timerRicerca = null;
+  document.getElementById('ricerca-indirizzo').addEventListener('input', (e) => {
+    clearTimeout(timerRicerca);
+    const testo = e.target.value.trim();
+    if (testo.length < 3) {
+      document.getElementById('risultati-ricerca').innerHTML = "";
+      return;
+    }
+    timerRicerca = setTimeout(() => cercaIndirizzo(testo), 500);
+  });
+
+  async function cercaIndirizzo(testo) {
+    const contenitore = document.getElementById('risultati-ricerca');
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(testo)}&format=json&limit=5&addressdetails=1`;
+      const risposta = await fetch(url, { headers: { "Accept-Language": "it" } });
+      const risultati = await risposta.json();
+      mostraRisultatiRicerca(risultati);
+    } catch (err) {
+      console.error("Errore ricerca indirizzo:", err);
+      contenitore.innerHTML = `<p style="font-size:12px;color:var(--testo-terziario);">Connessione assente o ricerca non riuscita. Riprova o inserisci la posizione con il GPS.</p>`;
+    }
+  }
+
+  function mostraRisultatiRicerca(risultati) {
+    const contenitore = document.getElementById('risultati-ricerca');
+    contenitore.innerHTML = "";
+    risultati.forEach(r => {
+      const voce = document.createElement('div');
+      voce.style.cssText = "padding:8px 10px;background:var(--carta-chiara);border-radius:8px;font-size:13px;cursor:pointer;";
+      voce.textContent = r.display_name;
+      voce.addEventListener('click', () => {
+        posizioneScelta = { lat: parseFloat(r.lat), lng: parseFloat(r.lon) };
+        const indirizzo = r.address || {};
+        localitaScelta = {
+          citta: indirizzo.city || indirizzo.town || indirizzo.village || indirizzo.hamlet || null,
+          paese: indirizzo.country || null
+        };
+        document.getElementById('ricerca-indirizzo').value = r.display_name;
+        if (!document.getElementById('titolo').value) {
+          // Precompila il titolo con la prima parte del nome trovato
+          document.getElementById('titolo').value = r.display_name.split(',')[0];
+        }
+        contenitore.innerHTML = "";
+        const p = document.getElementById('posizione-scelta');
+        p.textContent = `Posizione selezionata: ${posizioneScelta.lat.toFixed(5)}, ${posizioneScelta.lng.toFixed(5)}`;
+        p.style.display = "block";
+      });
+      contenitore.appendChild(voce);
+    });
+  }
+
+  // --- Foto (scatta/carica), compressa via canvas ---
+
+  let fotoBase64 = null; // null = nessuna foto, altrimenti dataURL JPEG compresso
+
+  function comprimiImmagine(file, dimensioneMax = 1000, qualita = 0.72) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height && width > dimensioneMax) {
+            height = Math.round(height * (dimensioneMax / width));
+            width = dimensioneMax;
+          } else if (height > dimensioneMax) {
+            width = Math.round(width * (dimensioneMax / height));
+            height = dimensioneMax;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', qualita));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function mostraAnteprimaFoto(dataUrl) {
+    document.getElementById('img-anteprima').src = dataUrl;
+    document.getElementById('anteprima-foto').style.display = "block";
+  }
+
+  function nascondiAnteprimaFoto() {
+    document.getElementById('anteprima-foto').style.display = "none";
+    document.getElementById('img-anteprima').src = "";
+  }
+
+  async function gestisciFileSelezionato(file) {
+    if (!file) return;
+    const statoEl = document.getElementById('foto-stato');
+    statoEl.style.display = "block";
+    statoEl.textContent = "Comprimo l'immagine...";
+    try {
+      fotoBase64 = await comprimiImmagine(file);
+      mostraAnteprimaFoto(fotoBase64);
+      const kb = Math.round((fotoBase64.length * 0.75) / 1024);
+      statoEl.textContent = `Foto pronta (~${kb} KB).`;
+    } catch (err) {
+      console.error(err);
+      statoEl.textContent = "Errore nella lettura dell'immagine. Riprova.";
+    }
+  }
+
+  document.getElementById('btn-scatta').addEventListener('click', () => document.getElementById('input-scatta').click());
+  document.getElementById('btn-carica').addEventListener('click', () => document.getElementById('input-carica').click());
+  document.getElementById('input-scatta').addEventListener('change', (e) => gestisciFileSelezionato(e.target.files[0]));
+  document.getElementById('input-carica').addEventListener('change', (e) => gestisciFileSelezionato(e.target.files[0]));
+
+  document.getElementById('btn-rimuovi-foto').addEventListener('click', () => {
+    fotoBase64 = null;
+    nascondiAnteprimaFoto();
+    document.getElementById('foto-stato').style.display = "none";
+  });
+
+  // --- Ricerca foto Wikimedia Commons ---
+
+  document.getElementById('btn-cerca-foto').addEventListener('click', () => {
+    const pannello = document.getElementById('pannello-ricerca-foto');
+    const apri = pannello.style.display === "none";
+    pannello.style.display = apri ? "block" : "none";
+    if (apri) {
+      const inputRicerca = document.getElementById('input-ricerca-foto');
+      inputRicerca.value = document.getElementById('titolo').value || "";
+      if (inputRicerca.value) cercaFotoWikimedia(inputRicerca.value);
+    }
+  });
+
+  document.getElementById('btn-cerca-foto-avvia').addEventListener('click', () => {
+    const testo = document.getElementById('input-ricerca-foto').value.trim();
+    if (testo) cercaFotoWikimedia(testo);
+  });
+
+  async function cercaFotoWikimedia(testo) {
+    const contenitore = document.getElementById('risultati-foto-wikimedia');
+    const statoEl = document.getElementById('foto-wikimedia-stato');
+    contenitore.innerHTML = "";
+    statoEl.textContent = "Cerco immagini...";
+
+    try {
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(testo)}&gsrnamespace=6&gsrlimit=9&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
+      const risposta = await fetch(url);
+      const dati = await risposta.json();
+      const pagine = dati.query ? Object.values(dati.query.pages) : [];
+
+      if (pagine.length === 0) {
+        statoEl.textContent = "Nessuna immagine trovata. Prova un altro termine.";
+        return;
+      }
+
+      statoEl.textContent = "Tocca un'immagine per usarla.";
+      pagine.forEach(pagina => {
+        const info = pagina.imageinfo && pagina.imageinfo[0];
+        if (!info || !info.thumburl) return;
+        const miniatura = document.createElement('img');
+        miniatura.src = info.thumburl;
+        miniatura.style.cssText = "width:100%;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;";
+        miniatura.addEventListener('click', () => selezionaFotoWikimedia(info.url));
+        contenitore.appendChild(miniatura);
+      });
+    } catch (err) {
+      console.error("Errore ricerca Wikimedia:", err);
+      statoEl.textContent = "Ricerca non riuscita. Riprova.";
+    }
+  }
+
+  async function selezionaFotoWikimedia(urlImmagine) {
+    const statoEl = document.getElementById('foto-wikimedia-stato');
+    statoEl.textContent = "Scarico e comprimo l'immagine...";
+
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = urlImmagine;
+      });
+
+      const dimensioneMax = 1000;
+      let { width, height } = img;
+      if (width > height && width > dimensioneMax) {
+        height = Math.round(height * (dimensioneMax / width));
+        width = dimensioneMax;
+      } else if (height > dimensioneMax) {
+        width = Math.round(width * (dimensioneMax / height));
+        height = dimensioneMax;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+      fotoBase64 = canvas.toDataURL('image/jpeg', 0.72);
+      mostraAnteprimaFoto(fotoBase64);
+      document.getElementById('pannello-ricerca-foto').style.display = "none";
+
+      const kb = Math.round((fotoBase64.length * 0.75) / 1024);
+      document.getElementById('foto-stato').style.display = "block";
+      document.getElementById('foto-stato').textContent = `Foto pronta (~${kb} KB, da Wikimedia Commons).`;
+    } catch (err) {
+      console.error("Errore selezione foto Wikimedia:", err);
+      statoEl.textContent = "Impossibile usare questa immagine (restrizione del sito sorgente). Prova un'altra.";
+    }
+  }
+
+  // --- Salvataggio ---
+
+  const paragrafoErrore = document.getElementById('errore');
+  function mostraErrore(msg) {
+    paragrafoErrore.textContent = msg;
+    paragrafoErrore.style.display = "block";
+  }
+
+  document.getElementById('btn-salva').addEventListener('click', async () => {
+    paragrafoErrore.style.display = "none";
+
+    const titolo = document.getElementById('titolo').value.trim();
+    const nota = document.getElementById('nota').value.trim();
+    const orarioInserito = document.getElementById('orario-tappa').value; // "HH:MM"
+
+    if (!titolo) {
+      mostraErrore("Inserisci un titolo per la tappa.");
+      return;
+    }
+    if (!tipoSelezionato) {
+      mostraErrore("Scegli un tipo di tappa.");
+      return;
+    }
+    if (!posizioneScelta) {
+      mostraErrore("Cerca e seleziona una posizione.");
+      return;
+    }
+    if (!orarioInserito) {
+      mostraErrore("Inserisci un orario.");
+      return;
+    }
+
+    // Combina il giorno della tappa con l'orario scelto, in ora locale.
+    // Niente più Timestamp Firestore: un ISO string locale basta ed è più
+    // semplice da confrontare/ordinare in IndexedDB.
+    const [oreScelte, minutiScelti] = orarioInserito.split(':').map(Number);
+    const [annoG, meseG, giornoG] = dataGiorno.split('-').map(Number);
+    const dataOraTappa = new Date(annoG, meseG - 1, giornoG, oreScelte, minutiScelti);
+    const orarioISO = dataOraTappa.toISOString();
+
+    const datiTappa = {
+      titolo,
+      nota,
+      tipo: tipoSelezionato.nome,
+      tipoIcona: tipoSelezionato.icona,
+      tipoColore: tipoSelezionato.colore,
+      posizione: posizioneScelta,
+      localita: localitaScelta,
+      data: dataGiorno,
+      foto: fotoBase64,
+      orario: orarioISO
+    };
+
+    if (tappaId) {
+      await aggiornaTappa(tappaId, datiTappa);
+    } else {
+      await creaTappa(viaggioId, datiTappa);
+    }
+
+    window.location.href = `viaggio.html?id=${viaggioId}&data=${dataGiorno}`;
+  });
+
+  document.getElementById('btn-elimina').addEventListener('click', async () => {
+    if (!confirm("Eliminare questa tappa? L'operazione non è reversibile.")) return;
+    await eliminaTappa(tappaId);
+    window.location.href = `viaggio.html?id=${viaggioId}&data=${dataGiorno}`;
+  });
+</script>
+
+</body>
+</html>

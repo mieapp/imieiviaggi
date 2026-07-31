@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>I miei viaggi</title>
+<link rel="stylesheet" href="css/stile.css">
+<style>
+  #lista-viaggi {
+    padding: 12px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  @media (min-width: 768px) and (max-width: 1400px) {
+    #lista-viaggi {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      padding: 16px 24px 24px;
+    }
+  }
+</style>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icona-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icona-180.png">
+<meta name="theme-color" content="#C97B3D">
+</head>
+<body>
+
+<div class="app con-footer">
+
+  <div class="app-header">
+    <h1>I miei viaggi</h1>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span id="btn-importa" title="Importa viaggio da backup" style="cursor:pointer;font-size:18px;color:var(--testo-header);">⬆️</span>
+      <button class="azione" id="btn-nuovo-viaggio" title="Nuovo viaggio">+</button>
+    </div>
+  </div>
+  <input type="file" id="input-importa" accept="application/json" style="display:none">
+
+  <!-- Overlay: cosa fare se il viaggio importato ha lo stesso nome di uno già presente -->
+  <div id="overlay-import-duplicato" style="display:none;position:fixed;inset:0;background:rgba(27,46,53,0.55);z-index:50;align-items:center;justify-content:center;padding:24px;">
+    <div class="card" style="max-width:360px;width:100%;display:flex;flex-direction:column;gap:12px;">
+      <p style="font-weight:500;font-size:14px;margin:0;" id="testo-import-duplicato"></p>
+      <button class="btn-primario" id="btn-import-crea-nuovo">Crea comunque un nuovo viaggio separato</button>
+      <button class="btn-primario" id="btn-import-sovrascrivi" style="background:var(--rosso-mattone);">Sovrascrivi il viaggio esistente</button>
+      <button style="height:44px;border-radius:var(--raggio-bottone);background:transparent;border:0.5px solid var(--bordo);color:var(--testo-secondario);font-size:14px;" id="btn-import-annulla">Annulla import</button>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;padding:14px 16px 4px;">
+    <span class="chip attivo" id="filtro-in-corso">In corso</span>
+    <span class="chip" id="filtro-conclusi">Conclusi</span>
+  </div>
+
+  <div id="lista-viaggi">
+    <p id="messaggio-vuoto" style="display:none;text-align:center;padding:32px 20px;color:var(--testo-secondario);font-size:14px;line-height:1.5;grid-column:1/-1;">Nessun viaggio ancora.<br>Tocca "+" in alto per crearne uno.</p>
+  </div>
+
+  <div class="app-footer">
+    <button class="tab attivo" id="tab-viaggi">
+      <span>🗺️</span><span>Viaggi</span>
+    </button>
+    <button class="tab" id="tab-pianifica">
+      <span>📅</span><span>Itinerari</span>
+    </button>
+    <button class="tab" id="tab-guida">
+      <span>ℹ️</span><span>Guida</span>
+    </button>
+  </div>
+
+</div>
+
+<script type="module">
+  import { ottieniTuttiViaggi, creaViaggio, eliminaViaggio, creaTappa, impostaViaggio } from "./js/db-locale.js";
+
+  const listaViaggi = document.getElementById('lista-viaggi');
+  const messaggioVuoto = document.getElementById('messaggio-vuoto');
+
+  document.getElementById('btn-nuovo-viaggio').addEventListener('click', () => {
+    window.location.href = "nuovo-viaggio.html";
+  });
+  document.getElementById('tab-pianifica').addEventListener('click', () => {
+    window.location.href = "pianificazione.html";
+  });
+  document.getElementById('tab-guida').addEventListener('click', () => {
+    window.location.href = "guida.html";
+  });
+
+  // --- Import di un viaggio da file di backup ---
+  //
+  // Se un viaggio con lo stesso nome esiste già, l'app chiede ogni volta cosa
+  // fare (decisione 31/07/2026): crea comunque un nuovo viaggio separato,
+  // sovrascrivi quello esistente, oppure annulla.
+
+  document.getElementById('btn-importa').addEventListener('click', () => {
+    document.getElementById('input-importa').click();
+  });
+
+  document.getElementById('input-importa').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = ""; // permette di riselezionare lo stesso file una seconda volta
+    if (!file) return;
+
+    let pacchetto;
+    try {
+      const testo = await file.text();
+      pacchetto = JSON.parse(testo);
+      if (!pacchetto.viaggio || !Array.isArray(pacchetto.tappe)) {
+        throw new Error("Struttura del file non valida");
+      }
+    } catch (err) {
+      console.error("Errore lettura file di backup:", err);
+      alert("Questo file non sembra un backup valido di \"I miei viaggi\".");
+      return;
+    }
+
+    const viaggiEsistenti = await ottieniTuttiViaggi();
+    const duplicato = viaggiEsistenti.find(v => v.nome === pacchetto.viaggio.nome);
+
+    if (!duplicato) {
+      await importaComeNuovoViaggio(pacchetto);
+      await caricaViaggi();
+      alert(`Viaggio "${pacchetto.viaggio.nome}" importato.`);
+      return;
+    }
+
+    mostraSceltaImportDuplicato(pacchetto, duplicato);
+  });
+
+  function mostraSceltaImportDuplicato(pacchetto, duplicato) {
+    const overlay = document.getElementById('overlay-import-duplicato');
+    document.getElementById('testo-import-duplicato').textContent =
+      `Hai già un viaggio chiamato "${duplicato.nome}". Cosa vuoi fare con il viaggio importato?`;
+    overlay.style.display = "flex";
+
+    const chiudi = () => { overlay.style.display = "none"; };
+
+    document.getElementById('btn-import-crea-nuovo').onclick = async () => {
+      chiudi();
+      await importaComeNuovoViaggio(pacchetto);
+      await caricaViaggi();
+      alert(`Viaggio "${pacchetto.viaggio.nome}" importato come nuovo viaggio separato.`);
+    };
+
+    document.getElementById('btn-import-sovrascrivi').onclick = async () => {
+      chiudi();
+      if (!confirm(`Sovrascrivere "${duplicato.nome}"? Le tappe attuali di questo viaggio verranno sostituite con quelle del file importato.`)) return;
+      await sovrascriviViaggio(pacchetto, duplicato);
+      await caricaViaggi();
+      alert(`Viaggio "${duplicato.nome}" sovrascritto con i dati importati.`);
+    };
+
+    document.getElementById('btn-import-annulla').onclick = chiudi;
+  }
+
+  async function importaComeNuovoViaggio(pacchetto) {
+    // creaViaggio genera un nuovo id e un nuovo creatoIl: qui teniamo solo i
+    // campi "di contenuto" del viaggio importato, non id/creatoIl originali.
+    const { id, creatoIl, ...datiViaggio } = pacchetto.viaggio;
+    const nuovoViaggio = await creaViaggio(datiViaggio);
+    for (const tappa of pacchetto.tappe) {
+      const { id: idTappa, viaggioId, ...datiTappa } = tappa;
+      await creaTappa(nuovoViaggio.id, datiTappa);
+    }
+  }
+
+  async function sovrascriviViaggio(pacchetto, viaggioEsistente) {
+    // Manteniamo l'id (e la data di creazione originale) del viaggio esistente:
+    // eliminiamo le sue tappe attuali e ricreiamo quelle del file importato.
+    const { id, creatoIl, ...datiViaggio } = pacchetto.viaggio;
+
+    await eliminaViaggio(viaggioEsistente.id); // elimina viaggio + tutte le sue tappe attuali
+    await impostaViaggio({
+      ...datiViaggio,
+      id: viaggioEsistente.id,
+      creatoIl: viaggioEsistente.creatoIl
+    });
+
+    for (const tappa of pacchetto.tappe) {
+      const { id: idTappa, viaggioId, ...datiTappa } = tappa;
+      await creaTappa(viaggioEsistente.id, datiTappa);
+    }
+  }
+
+  let tuttiIViaggi = [];
+  let filtroAttivo = "in corso";
+
+  document.getElementById('filtro-in-corso').addEventListener('click', () => impostaFiltro("in corso"));
+  document.getElementById('filtro-conclusi').addEventListener('click', () => impostaFiltro("concluso"));
+
+  function impostaFiltro(stato) {
+    filtroAttivo = stato;
+    document.getElementById('filtro-in-corso').classList.toggle('attivo', stato === "in corso");
+    document.getElementById('filtro-conclusi').classList.toggle('attivo', stato === "concluso");
+    disegnaViaggi();
+  }
+
+  async function caricaViaggi() {
+    tuttiIViaggi = await ottieniTuttiViaggi();
+    tuttiIViaggi.sort((a, b) => (b.dataInizio || "").localeCompare(a.dataInizio || ""));
+    disegnaViaggi();
+  }
+
+  function formattaDataIT(iso) {
+    if (!iso) return "";
+    const [anno, mese, giorno] = iso.split('-');
+    return `${giorno}-${mese}-${anno}`;
+  }
+
+  function disegnaViaggi() {
+    listaViaggi.innerHTML = "";
+    const viaggiFiltrati = tuttiIViaggi.filter(v => (v.stato || "in corso") === filtroAttivo);
+
+    if (viaggiFiltrati.length === 0) {
+      messaggioVuoto.textContent = filtroAttivo === "in corso"
+        ? 'Nessun viaggio in corso. Tocca "+" in alto per crearne uno.'
+        : "Nessun viaggio concluso ancora.";
+      messaggioVuoto.style.display = "block";
+      listaViaggi.appendChild(messaggioVuoto);
+      return;
+    }
+    messaggioVuoto.style.display = "none";
+
+    viaggiFiltrati.forEach(v => {
+      const card = document.createElement('div');
+      card.className = "card";
+      card.style.overflow = "hidden";
+      card.style.padding = "0";
+      card.style.cursor = "pointer";
+      card.innerHTML = `
+        <div style="width:100%;aspect-ratio:960/475;background:${v.immagineCopertina ? `url('${v.immagineCopertina}') center/cover` : 'var(--verde-chiaro)'};"></div>
+        <div style="padding:12px 14px;">
+          <p style="font-weight:500;font-size:15px;">${v.nome}</p>
+          <p style="margin-top:4px;font-size:13px;color:var(--testo-terziario);">${formattaDataIT(v.dataInizio)} - ${formattaDataIT(v.dataFine)} · ${v.stato || "in corso"}</p>
+        </div>
+      `;
+      card.addEventListener('click', () => {
+        window.location.href = `viaggio.html?id=${v.id}`;
+      });
+      listaViaggi.appendChild(card);
+    });
+  }
+
+  caricaViaggi();
+</script>
+
+</body>
+</html>

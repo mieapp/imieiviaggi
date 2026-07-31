@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Guida all'uso - I miei viaggi</title>
+<link rel="stylesheet" href="css/stile.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icona-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icona-180.png">
+<meta name="theme-color" content="#C97B3D">
+<style>
+  .guida-sezione { margin-bottom: 22px; }
+  .guida-sezione h2 {
+    font-family: var(--font-display);
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: var(--blu-petrolio);
+  }
+  .guida-sezione p, .guida-sezione li {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--testo-secondario);
+  }
+  .guida-sezione ul { padding-left: 20px; margin-top: 4px; }
+  .guida-sezione li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="app-header">
+    <span style="color:var(--testo-header);cursor:pointer;" id="btn-indietro">←</span>
+    <h1 style="font-size:17px;">Guida all'uso</h1>
+    <span style="width:20px;"></span>
+  </div>
+
+  <div class="contenuto-centrato" style="padding:16px;">
+
+    <div class="guida-sezione">
+      <h2>Cos'è "I miei viaggi"</h2>
+      <p>Un taccuino da tenere aggiornato mentre viaggi: registri le tappe della giornata — dove ti sei fermato, cosa hai visto, dove hai dormito o mangiato — e le ritrovi organizzate su una mappa reale, giorno per giorno. Tutto resta <strong>solo su questo dispositivo</strong>: non serve un account, e nessun altro può vedere i tuoi viaggi.</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>Muoversi nell'app</h2>
+      <p>In fondo alle schermate principali trovi tre schede: <strong>🗺️ Viaggi</strong> (l'elenco), <strong>📅 Itinerari</strong> (guide su cosa vedere e dove mangiare nelle città in cui ti fermi, vedi sotto) e <strong>ℹ️ Guida</strong> (questa pagina).</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>Creare un viaggio</h2>
+      <p>Dall'elenco viaggi, tocca "+" in alto. Inserisci nome e date: il viaggio è subito pronto. Potrai aggiungere una copertina e segnarlo come "concluso" quando finisce, dalla pagina di Gestione (icona ingranaggio) — i filtri "In corso"/"Conclusi" in cima all'elenco viaggi ti aiutano a ritrovarli.</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>Aggiungere una tappa</h2>
+      <p>Dentro un viaggio, tocca "+ Aggiungi tappa". Per la posizione hai due strade:</p>
+      <ul>
+        <li><strong>Posizione attuale</strong>: rileva dove sei in questo momento e ti suggerisce automaticamente i punti di interesse vicini, se ne trova</li>
+        <li><strong>Ricerca indirizzo</strong>: cerca manualmente un luogo per nome</li>
+      </ul>
+      <p>Scegli un tipo tra i venti disponibili (visita, pernottamento, ristorante, terme, evento...), scrivi un titolo, e se vuoi una nota e una foto — scattata, caricata, oppure cercata online. L'<strong>orario</strong> si precompila da solo con l'ora attuale ma resta modificabile: comodo se ti ricordi solo dopo di segnare una tappa e vuoi inserirla al momento giusto della giornata.</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>La mappa</h2>
+      <p>Nella vista "Giorni" vedi le tappe di una giornata collegate da un percorso. Tocca una tappa nell'elenco per farla comparire al centro della mappa, o un punto sulla mappa per evidenziarne la scheda. Nella vista "Mappa d'insieme" vedi tutto il viaggio, con un colore diverso per ogni giorno, incluso il collegamento tra le tappe di giorni diversi.</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>Modificare o cancellare</h2>
+      <p>Ogni tappa può essere modificata (icona matita) o eliminata (icona cestino) in qualsiasi momento, così come i tipi personalizzati nella pagina di Gestione.</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>Esportare il diario in PDF</h2>
+      <p>Dall'icona "📄" nel dettaglio viaggio, genera un PDF completo: copertina, mappa reale del percorso colorata per giorno, ed elenco di tutte le tappe con orari, note e foto. Un secondo tocco sul pulsante (dopo la generazione) apre la condivisione — puoi mandarlo via WhatsApp, email, o semplicemente scaricarlo.</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>Itinerari: cosa vedere e dove mangiare</h2>
+      <p>Dalla scheda "📅 Itinerari" in basso, scegli un viaggio e aggiungi un <strong>soggiorno</strong>: cerchi la città e indichi da quale a quale giorno ci resti, toccando il primo e l'ultimo pallino. Per ogni soggiorno puoi generare due tipi di guida, tratte da Wikivoyage:</p>
+      <ul>
+        <li><strong>Tutto</strong>: il contenuto completo della pagina della città — cosa vedere, dove mangiare, sicurezza, dintorni e molto altro</li>
+        <li><strong>Suggerito</strong>: scegli tu quali attrazioni includere e in che giorno, tra quelle proposte</li>
+      </ul>
+      <p>Entrambe restano salvate (le ritrovi toccando di nuovo lo stesso pulsante) e possono essere esportate come PDF a parte o condivise — un documento separato dal diario di viaggio, perché qui sono suggerimenti, non quello che hai effettivamente visto.</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>Backup: perché è importante</h2>
+      <p>Questa app non usa alcun servizio in cloud: ogni viaggio è salvato <strong>solo</strong> sul dispositivo su cui lo crei. Non c'è un backup automatico da nessuna parte. Se perdi il telefono, lo cambi, o disinstalli l'app senza aver esportato un backup, il viaggio va perso per sempre.</p>
+      <p>Dalla pagina di Gestione di ogni viaggio (icona ingranaggio), tocca "Esporta backup di questo viaggio": ottieni un file da salvare dove preferisci (es. nella galleria, su un servizio di file del telefono, inviato via email a te stesso). Per ricaricarlo, usa il pulsante "⬆️" in alto nell'elenco viaggi: se hai già un viaggio con lo stesso nome, l'app ti chiede se crearne uno separato o sovrascrivere quello esistente.</p>
+    </div>
+
+    <div class="guida-sezione">
+      <h2>Funziona anche senza connessione</h2>
+      <p>Puoi aggiungere e modificare tappe anche offline: il salvataggio è sempre immediato, perché avviene sul dispositivo stesso, non su un server. La mappa e le ricerche online (indirizzi, punti di interesse, foto, Itinerari) richiedono invece connessione.</p>
+    </div>
+
+  </div>
+
+  <p class="footer-versione" id="footer-versione"></p>
+
+</div>
+
+<script type="module">
+  import { APP_VERSION, APP_LAST_UPDATE } from "./js/version.js";
+
+  document.getElementById('footer-versione').textContent = `${APP_VERSION} · aggiornato il ${APP_LAST_UPDATE}`;
+
+  document.getElementById('btn-indietro').addEventListener('click', () => {
+    // Torna alla pagina precedente se possibile, altrimenti all'elenco viaggi
+    if (document.referrer && document.referrer.includes(window.location.host)) {
+      history.back();
+    } else {
+      window.location.href = "index.html";
+    }
+  });
+</script>
+
+</body>
+</html>

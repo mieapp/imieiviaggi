@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Viaggio - I miei viaggi</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="css/stile.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icona-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icona-180.png">
+<meta name="theme-color" content="#C97B3D">
+<style>
+  #mappa { width: 100%; height: 220px; background: var(--verde-chiaro); }
+  #mappa.leaflet-container,
+  #mappa .leaflet-grab,
+  #mappa .leaflet-dragging .leaflet-grab {
+    cursor: default !important;
+  }
+  #lista-tappe {
+    padding: 12px 16px 90px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Tablet/desktop: mappa e lista tappe affiancate invece che una sopra l'altra */
+  @media (min-width: 768px) and (max-width: 1400px) {
+    #contenuto-giorno {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 0 16px;
+    }
+    #mappa {
+      flex: 1.3;
+      height: calc(100vh - 210px);
+      min-height: 420px;
+      border-radius: 12px;
+      position: sticky;
+      top: 16px;
+    }
+    #lista-tappe {
+      flex: 1;
+      padding: 0 0 90px;
+      max-height: calc(100vh - 210px);
+      min-height: 420px;
+      overflow-y: auto;
+    }
+  }
+  .giorno-pill {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    border-radius: 10px;
+    text-align: center;
+    cursor: pointer;
+    border: 0.5px solid var(--bordo);
+    background: #FFFFFF;
+    font-family: var(--font-mono);
+  }
+  .giorno-pill.attivo {
+    background: var(--blu-petrolio);
+    border-color: var(--blu-petrolio);
+    color: var(--carta-chiara);
+  }
+  .giorno-pill .num { display:block; font-size: 16px; font-weight:600; }
+  .giorno-pill .mese { display:block; font-size: 10px; text-transform:uppercase; }
+  .tappa-riga.attiva {
+    border-color: var(--ambra) !important;
+    background: #FBF3E9 !important;
+  }
+</style>
+</head>
+<body>
+
+<div class="app con-footer">
+
+  <div class="app-header">
+    <div>
+      <p class="eyebrow" id="eyebrow-data"></p>
+      <h1 id="titolo-viaggio">Viaggio</h1>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;">
+      <span style="color:var(--testo-header);cursor:pointer;font-size:14px;" id="btn-elenco">← Viaggi</span>
+      <span style="color:var(--testo-header);cursor:pointer;font-size:18px;" id="btn-pdf">📄</span>
+      <span style="color:var(--testo-header);cursor:pointer;font-size:20px;" id="btn-gestione">⚙️</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;padding:12px 16px 8px;">
+    <span class="chip attivo" id="tab-giorni">Giorni</span>
+    <span class="chip" id="tab-insieme">Mappa d'insieme</span>
+    <span class="chip" id="tab-riepilogo">Riepilogo</span>
+  </div>
+
+  <div id="vista-giorni">
+    <div id="selettore-giorni" style="display:flex;gap:8px;padding:8px 16px;overflow-x:auto;"></div>
+    <div id="contenuto-giorno">
+      <div id="mappa"></div>
+      <div id="lista-tappe"></div>
+    </div>
+  </div>
+
+  <div id="vista-insieme" style="display:none;">
+    <div id="mappa-insieme" style="width:100%;height:60vh;background:var(--verde-chiaro);"></div>
+    <p style="padding:16px;font-size:13px;color:var(--testo-terziario);text-align:center;">Tutte le tappe di tutti i giorni, un colore per giorno.</p>
+  </div>
+
+  <div id="vista-riepilogo" style="display:none;padding:16px;padding-bottom:90px;"></div>
+
+  <button class="btn-primario" id="btn-aggiungi-tappa" style="position:fixed;bottom:96px;left:16px;right:16px;max-width:448px;margin:0 auto;box-shadow:0 4px 16px rgba(27,46,53,0.25);">+ Aggiungi tappa</button>
+
+  <div class="app-footer">
+    <button class="tab attivo" id="tab-viaggi">
+      <span>🗺️</span><span>Viaggi</span>
+    </button>
+    <button class="tab" id="tab-pianifica">
+      <span>📅</span><span>Itinerari</span>
+    </button>
+    <button class="tab" id="tab-guida-footer">
+      <span>ℹ️</span><span>Guida</span>
+    </button>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+  import { esportaPDF, condividiOScaricaPDF } from "./js/export-pdf.js";
+  import { ottieniViaggio, ottieniTappePerGiorno, ottieniTappePerViaggio, eliminaTappa } from "./js/db-locale.js";
+
+  const params = new URLSearchParams(window.location.search);
+  const viaggioId = params.get('id');
+
+  if (!viaggioId) {
+    alert("Nessun viaggio specificato.");
+    window.location.href = "index.html";
+  }
+
+  document.getElementById('btn-elenco').addEventListener('click', () => {
+    window.location.href = "index.html";
+  });
+
+  document.getElementById('tab-viaggi').addEventListener('click', () => {
+    window.location.href = "index.html";
+  });
+  document.getElementById('tab-pianifica').addEventListener('click', () => {
+    window.location.href = `pianificazione.html?id=${viaggioId}`;
+  });
+  document.getElementById('tab-guida-footer').addEventListener('click', () => {
+    window.location.href = "guida.html";
+  });
+
+  let pdfPronto = null; // { file, nomeFile, nomeViaggio }, valorizzato dopo la generazione
+
+  document.getElementById('btn-pdf').addEventListener('click', async () => {
+    const bottone = document.getElementById('btn-pdf');
+
+    if (pdfPronto) {
+      // Secondo click: gesto utente nuovo e valido, qui è sicuro aprire la condivisione
+      await condividiOScaricaPDF(pdfPronto.file, pdfPronto.nomeFile, pdfPronto.nomeViaggio);
+      pdfPronto = null;
+      bottone.textContent = "📄";
+      bottone.title = "";
+      return;
+    }
+
+    bottone.textContent = "⏳";
+    try {
+      pdfPronto = await esportaPDF(viaggioId, datiViaggio, giorniViaggio, (messaggio) => {
+        bottone.title = messaggio;
+      });
+      bottone.textContent = "✅";
+      bottone.title = "PDF pronto: tocca di nuovo per condividere o scaricare";
+    } catch (err) {
+      console.error("Errore export PDF:", err);
+      alert("Errore durante la generazione del PDF. Riprova.");
+      bottone.textContent = "📄";
+    }
+  });
+
+  document.getElementById('btn-gestione').addEventListener('click', () => {
+    window.location.href = `gestione-viaggio.html?id=${viaggioId}`;
+  });
+
+  let datiViaggio = null;
+  let giorniViaggio = []; // array di stringhe "YYYY-MM-DD"
+  let giornoSelezionato = null;
+  let mappa = null;
+  let markerCorrenti = [];
+  let lineaCorrente = null;
+
+  caricaViaggio();
+
+  async function caricaViaggio() {
+    datiViaggio = await ottieniViaggio(viaggioId);
+    if (!datiViaggio) {
+      alert("Viaggio non trovato.");
+      window.location.href = "index.html";
+      return;
+    }
+    document.getElementById('titolo-viaggio').textContent = datiViaggio.nome;
+
+    giorniViaggio = calcolaGiorni(datiViaggio.dataInizio, datiViaggio.dataFine);
+
+    const dataDallUrl = params.get('data');
+    if (dataDallUrl && giorniViaggio.includes(dataDallUrl)) {
+      giornoSelezionato = dataDallUrl;
+    } else {
+      const oggi = formattaDataLocale(new Date());
+      giornoSelezionato = giorniViaggio.includes(oggi) ? oggi : giorniViaggio[0];
+    }
+
+    disegnaSelettoreGiorni();
+    inizializzaMappa();
+    await caricaTappeGiorno();
+
+    document.getElementById('btn-aggiungi-tappa').addEventListener('click', () => {
+      window.location.href = `nuova-tappa.html?viaggioId=${viaggioId}&data=${giornoSelezionato}`;
+    });
+  }
+
+  function formattaDataLocale(data) {
+    const anno = data.getFullYear();
+    const mese = String(data.getMonth() + 1).padStart(2, '0');
+    const giorno = String(data.getDate()).padStart(2, '0');
+    return `${anno}-${mese}-${giorno}`;
+  }
+
+  function calcolaGiorni(inizio, fine) {
+    const giorni = [];
+    let corrente = new Date(inizio + "T00:00:00");
+    const ultimo = new Date(fine + "T00:00:00");
+    while (corrente <= ultimo) {
+      giorni.push(formattaDataLocale(corrente));
+      corrente.setDate(corrente.getDate() + 1);
+    }
+    return giorni;
+  }
+
+  function disegnaSelettoreGiorni() {
+    const contenitore = document.getElementById('selettore-giorni');
+    contenitore.innerHTML = "";
+    giorniViaggio.forEach((giorno, indice) => {
+      const d = new Date(giorno + "T00:00:00");
+      const pill = document.createElement('div');
+      pill.className = "giorno-pill" + (giorno === giornoSelezionato ? " attivo" : "");
+      pill.innerHTML = `<span class="num">${d.getDate()}</span><span class="mese">${d.toLocaleDateString('it-IT', { month: 'short' })}</span>`;
+      pill.addEventListener('click', () => selezionaGiorno(giorno));
+      contenitore.appendChild(pill);
+    });
+
+    document.getElementById('eyebrow-data').textContent = `GIORNO ${giorniViaggio.indexOf(giornoSelezionato) + 1} DI ${giorniViaggio.length}`;
+  }
+
+  async function selezionaGiorno(giorno) {
+    giornoSelezionato = giorno;
+    disegnaSelettoreGiorni();
+    await caricaTappeGiorno();
+    history.replaceState(null, "", `viaggio.html?id=${viaggioId}&data=${giorno}`);
+  }
+
+  function inizializzaMappa() {
+    mappa = L.map('mappa', { zoomControl: false }).setView([45.4642, 9.19], 5); // default generico, verrà ricentrata sui dati
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(mappa);
+
+    // La dimensione del contenitore cambia con la rotazione del dispositivo o
+    // il passaggio tra layout smartphone/tablet: Leaflet va avvisato esplicitamente.
+    let timerRidimensionamento = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(timerRidimensionamento);
+      timerRidimensionamento = setTimeout(() => mappa.invalidateSize(), 200);
+    });
+  }
+
+  // Niente più onSnapshot: essendo un solo dispositivo, dopo ogni salvataggio
+  // (nuova tappa, modifica, eliminazione) ricarichiamo esplicitamente la vista.
+  async function caricaTappeGiorno() {
+    const tappe = await ottieniTappePerGiorno(viaggioId, giornoSelezionato);
+    disegnaMappa(tappe);
+    disegnaListaTappe(tappe);
+  }
+
+  function disegnaMappa(tappe) {
+    markerCorrenti.forEach(m => mappa.removeLayer(m));
+    markerCorrenti = [];
+    if (lineaCorrente) { mappa.removeLayer(lineaCorrente); lineaCorrente = null; }
+
+    if (tappe.length === 0) return;
+
+    const punti = [];
+    tappe.forEach((t, indice) => {
+      punti.push([t.posizione.lat, t.posizione.lng]);
+      const marker = L.circleMarker([t.posizione.lat, t.posizione.lng], {
+        radius: 9,
+        fillColor: t.tipoColore || "#C97B3D",
+        color: '#F6F1E7',
+        weight: 2,
+        fillOpacity: 1
+      }).addTo(mappa);
+      marker.bindPopup(`<b>${t.titolo}</b>`);
+      marker.on('click', () => evidenziaTappa(t.id));
+      marker._tappaId = t.id;
+      markerCorrenti.push(marker);
+    });
+
+    if (punti.length > 1) {
+      lineaCorrente = L.polyline(punti, { color: '#C97B3D', weight: 3, dashArray: '2 8' }).addTo(mappa);
+    }
+
+    if (punti.length === 1) {
+      mappa.setView(punti[0], 15);
+    } else {
+      mappa.fitBounds(punti, { padding: [30, 30] });
+    }
+  }
+
+  function disegnaListaTappe(tappe) {
+    const contenitore = document.getElementById('lista-tappe');
+    contenitore.innerHTML = "";
+
+    if (tappe.length === 0) {
+      contenitore.innerHTML = `<p style="text-align:center;color:var(--testo-terziario);font-size:13px;padding:20px 0;">Nessuna tappa per questo giorno.</p>`;
+      return;
+    }
+
+    tappe.forEach(t => {
+      const riga = document.createElement('div');
+      riga.className = "card tappa-riga";
+      riga.dataset.tappaId = t.id;
+      riga.style.cursor = "pointer";
+      riga.style.display = "flex";
+      riga.style.gap = "12px";
+      riga.style.alignItems = "flex-start";
+
+      const ora = t.orario ? new Date(t.orario).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : "--:--";
+
+      const localitaTesto = (t.localita && t.localita.citta)
+        ? `${t.localita.citta}${t.localita.paese ? ', ' + t.localita.paese : ''}`
+        : "";
+
+      riga.innerHTML = `
+        <div style="width:34px;height:34px;border-radius:8px;background:${t.tipoColore}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">${t.tipoIcona || "📍"}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+            <p style="font-weight:500;font-size:14px;">${t.titolo}</p>
+            <span class="mono">${ora}</span>
+          </div>
+          ${localitaTesto ? `<p style="font-size:11px;color:var(--testo-terziario);margin:2px 0 0;">${localitaTesto}</p>` : ""}
+          <div style="overflow:auto;margin-top:4px;">
+            ${t.foto ? `<img src="${t.foto}" style="float:right;width:56px;height:56px;object-fit:cover;border-radius:8px;margin-left:10px;margin-bottom:4px;">` : ""}
+            ${t.nota ? `<p style="font-size:13px;color:var(--testo-secondario);margin:0;">${t.nota}</p>` : ""}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+          <span class="btn-modifica-tappa" style="cursor:pointer;font-size:15px;">✏️</span>
+          <span class="btn-elimina-tappa" style="cursor:pointer;font-size:15px;">🗑️</span>
+        </div>
+      `;
+
+      riga.querySelector('.btn-modifica-tappa').addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.location.href = `nuova-tappa.html?viaggioId=${viaggioId}&data=${giornoSelezionato}&tappaId=${t.id}`;
+      });
+
+      riga.querySelector('.btn-elimina-tappa').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Eliminare la tappa "${t.titolo}"?`)) return;
+        await eliminaTappa(t.id);
+        await caricaTappeGiorno(); // refresh esplicito della vista
+      });
+
+      riga.addEventListener('click', () => {
+        const marker = markerCorrenti.find(m => m._tappaId === t.id);
+        if (marker) {
+          mappa.flyTo(marker.getLatLng(), 17, { duration: 0.6 });
+          marker.openPopup();
+        }
+        evidenziaTappa(t.id);
+        document.getElementById('mappa').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      contenitore.appendChild(riga);
+    });
+  }
+
+  function evidenziaTappa(tappaId) {
+    document.querySelectorAll('.tappa-riga').forEach(el => el.classList.remove('attiva'));
+    const riga = document.querySelector(`.tappa-riga[data-tappa-id="${tappaId}"]`);
+    if (riga) riga.classList.add('attiva');
+  }
+
+  // --- Tab Giorni / Mappa d'insieme ---
+
+  let mappaInsieme = null;
+  let insiemeCaricato = false;
+  let riepilogoCaricato = false;
+
+  const PALETTE_GIORNI = ["#C97B3D", "#5C7A6E", "#8B3A3A", "#3E6B8B", "#8B6E3E", "#6E3E8B", "#3E8B6E", "#8B3E6E", "#6E8B3E", "#3E5A8B"];
+
+  document.getElementById('tab-giorni').addEventListener('click', () => {
+    document.getElementById('tab-giorni').classList.add('attivo');
+    document.getElementById('tab-insieme').classList.remove('attivo');
+    document.getElementById('tab-riepilogo').classList.remove('attivo');
+    document.getElementById('vista-giorni').style.display = "block";
+    document.getElementById('vista-insieme').style.display = "none";
+    document.getElementById('vista-riepilogo').style.display = "none";
+  });
+
+  document.getElementById('tab-insieme').addEventListener('click', async () => {
+    document.getElementById('tab-insieme').classList.add('attivo');
+    document.getElementById('tab-giorni').classList.remove('attivo');
+    document.getElementById('tab-riepilogo').classList.remove('attivo');
+    document.getElementById('vista-giorni').style.display = "none";
+    document.getElementById('vista-insieme').style.display = "block";
+    document.getElementById('vista-riepilogo').style.display = "none";
+
+    if (!insiemeCaricato) {
+      await caricaVistaInsieme();
+      insiemeCaricato = true;
+    } else if (mappaInsieme) {
+      setTimeout(() => mappaInsieme.invalidateSize(), 100);
+    }
+  });
+
+  document.getElementById('tab-riepilogo').addEventListener('click', async () => {
+    document.getElementById('tab-riepilogo').classList.add('attivo');
+    document.getElementById('tab-giorni').classList.remove('attivo');
+    document.getElementById('tab-insieme').classList.remove('attivo');
+    document.getElementById('vista-giorni').style.display = "none";
+    document.getElementById('vista-insieme').style.display = "none";
+    document.getElementById('vista-riepilogo').style.display = "block";
+
+    if (!riepilogoCaricato) {
+      await caricaRiepilogo();
+      riepilogoCaricato = true;
+    }
+  });
+
+  async function caricaVistaInsieme() {
+    mappaInsieme = L.map('mappa-insieme', { zoomControl: true }).setView([45.4642, 9.19], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(mappaInsieme);
+
+    const tappe = await ottieniTappePerViaggio(viaggioId);
+
+    if (tappe.length === 0) {
+      setTimeout(() => mappaInsieme.invalidateSize(), 100);
+      return;
+    }
+
+    // Raggruppa le tappe per giorno
+    const perGiorno = {};
+    tappe.forEach(t => {
+      if (!perGiorno[t.data]) perGiorno[t.data] = [];
+      perGiorno[t.data].push(t);
+    });
+
+    const tuttiIPunti = [];
+    let ultimoPuntoGiornoPrecedente = null;
+    let coloreGiornoPrecedente = null;
+
+    giorniViaggio.forEach((giorno, indice) => {
+      const tappeDelGiorno = perGiorno[giorno];
+      if (!tappeDelGiorno || tappeDelGiorno.length === 0) return;
+
+      const colore = PALETTE_GIORNI[indice % PALETTE_GIORNI.length];
+      const punti = [];
+
+      tappeDelGiorno.forEach(t => {
+        punti.push([t.posizione.lat, t.posizione.lng]);
+        tuttiIPunti.push([t.posizione.lat, t.posizione.lng]);
+        L.circleMarker([t.posizione.lat, t.posizione.lng], {
+          radius: 7,
+          fillColor: colore,
+          color: '#F6F1E7',
+          weight: 2,
+          fillOpacity: 1
+        }).addTo(mappaInsieme).bindPopup(`<b>${t.titolo}</b><br><span class="mono">Giorno ${indice + 1}</span>`);
+      });
+
+      if (punti.length > 1) {
+        L.polyline(punti, { color: colore, weight: 3, dashArray: '2 8' }).addTo(mappaInsieme);
+      }
+
+      // Collega l'ultima tappa del giorno precedente alla prima di questo giorno,
+      // per mostrare anche gli spostamenti tra un giorno e l'altro (es. città diverse)
+      if (ultimoPuntoGiornoPrecedente) {
+        L.polyline([ultimoPuntoGiornoPrecedente, punti[0]], {
+          color: coloreGiornoPrecedente,
+          weight: 2,
+          dashArray: '4 6',
+          opacity: 0.7
+        }).addTo(mappaInsieme);
+      }
+
+      ultimoPuntoGiornoPrecedente = punti[punti.length - 1];
+      coloreGiornoPrecedente = colore;
+    });
+
+    if (tuttiIPunti.length > 0) {
+      mappaInsieme.fitBounds(tuttiIPunti, { padding: [30, 30] });
+    }
+    setTimeout(() => mappaInsieme.invalidateSize(), 100);
+  }
+
+  async function caricaRiepilogo() {
+    const contenitore = document.getElementById('vista-riepilogo');
+    contenitore.innerHTML = `<p style="text-align:center;color:var(--testo-terziario);font-size:13px;padding:20px 0;">Calcolo il riepilogo...</p>`;
+
+    const tappe = await ottieniTappePerViaggio(viaggioId); // già ordinate per orario da db-locale.js
+
+    if (tappe.length === 0) {
+      contenitore.innerHTML = `<p style="text-align:center;color:var(--testo-terziario);font-size:13px;padding:20px 0;">Nessuna tappa registrata: il riepilogo comparirà qui.</p>`;
+      return;
+    }
+
+    // --- Km totali e tratta per tratta (haversine sulle coordinate, ordine cronologico dell'intero viaggio) ---
+    function distanzaKm(pos1, pos2) {
+      const R = 6371;
+      const rad = Math.PI / 180;
+      const dLat = (pos2.lat - pos1.lat) * rad;
+      const dLon = (pos2.lng - pos1.lng) * rad;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(pos1.lat * rad) * Math.cos(pos2.lat * rad) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    let kmTotali = 0;
+    const tratte = [];
+    for (let i = 1; i < tappe.length; i++) {
+      const km = distanzaKm(tappe[i - 1].posizione, tappe[i].posizione);
+      kmTotali += km;
+      tratte.push({ da: tappe[i - 1].titolo, a: tappe[i].titolo, km });
+    }
+
+    // --- Raggruppamento per città, con stima da tappa adiacente per quelle senza localita ---
+    tappe.forEach((t, indice) => {
+      t._indice = indice;
+      t._citta = t.localita && t.localita.citta ? t.localita.citta : null;
+      t._paese = t.localita && t.localita.paese ? t.localita.paese : null;
+      t._stimata = false;
+    });
+
+    tappe.forEach((t) => {
+      if (t._citta) return;
+      // Cerca la tappa con città nota più vicina in ordine cronologico (prima quelle
+      // dello stesso giorno, dato che la distanza per indice segue naturalmente
+      // l'ordine data+orario)
+      for (let distanza = 1; distanza < tappe.length; distanza++) {
+        const prima = tappe[t._indice - distanza];
+        const dopo = tappe[t._indice + distanza];
+        const candidata = (prima && prima._citta) ? prima : ((dopo && dopo._citta) ? dopo : null);
+        if (candidata) {
+          t._citta = candidata._citta;
+          t._paese = candidata._paese;
+          t._stimata = true;
+          break;
+        }
+      }
+    });
+
+    const gruppi = new Map(); // chiave "citta|paese" -> { citta, paese, giorni:Set, tappe:[] }
+    tappe.forEach((t) => {
+      const chiave = t._citta ? `${t._citta}|${t._paese || ''}` : '__non_identificata__';
+      if (!gruppi.has(chiave)) {
+        gruppi.set(chiave, { citta: t._citta, paese: t._paese, giorni: new Set(), tappe: [] });
+      }
+      const g = gruppi.get(chiave);
+      g.giorni.add(t.data);
+      g.tappe.push({ titolo: t.titolo, stimata: t._stimata });
+    });
+
+    // Ordine: comparsa cronologica, il gruppo "non identificata" (se presente) va in fondo
+    const chiaviOrdinate = Array.from(gruppi.keys()).sort((chiaveA, chiaveB) => {
+      if (chiaveA === '__non_identificata__') return 1;
+      if (chiaveB === '__non_identificata__') return -1;
+      return 0;
+    });
+
+    // --- Rendering ---
+    const rigaTratte = tratte.map(tr => `
+      <div style="display:flex;justify-content:space-between;background:#FFFFFF;border-radius:8px;padding:8px 10px;font-size:13px;gap:10px;">
+        <span style="color:var(--blu-petrolio);">${tr.da} → ${tr.a}</span>
+        <span class="mono" style="color:var(--verde-scuro);flex-shrink:0;">${Math.round(tr.km)} km</span>
+      </div>
+    `).join('');
+
+    const cardCitta = chiaviOrdinate.map(chiave => {
+      const g = gruppi.get(chiave);
+      const nomeLocalita = chiave === '__non_identificata__'
+        ? 'Località non identificata'
+        : `${g.citta}${g.paese ? ', ' + g.paese : ''}`;
+      const righeAttrazioni = g.tappe.map(t =>
+        `<p style="margin:0;font-size:12px;color:var(--testo-terziario);">· ${t.titolo}${t.stimata ? ' (posizione stimata)' : ''}</p>`
+      ).join('');
+      return `
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:8px;">
+            <span style="font-size:14px;font-weight:500;color:var(--blu-petrolio);">${nomeLocalita}</span>
+            <span style="font-size:12px;color:var(--verde-scuro);flex-shrink:0;">${g.giorni.size} ${g.giorni.size === 1 ? 'giorno' : 'giorni'}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:3px;">${righeAttrazioni}</div>
+        </div>
+      `;
+    }).join('');
+
+    contenitore.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div class="card">
+          <p style="margin:0 0 4px;font-size:12px;color:var(--testo-terziario);">Km totali</p>
+          <p class="mono" style="margin:0;font-size:20px;font-weight:600;color:var(--blu-petrolio);">${Math.round(kmTotali)} km</p>
+        </div>
+        <div class="card">
+          <p style="margin:0 0 4px;font-size:12px;color:var(--testo-terziario);">Giorni di viaggio</p>
+          <p class="mono" style="margin:0;font-size:20px;font-weight:600;color:var(--blu-petrolio);">${giorniViaggio.length} ${giorniViaggio.length === 1 ? 'giorno' : 'giorni'}</p>
+        </div>
+      </div>
+
+      ${tratte.length > 0 ? `
+        <p style="margin:0 0 8px;font-size:13px;font-weight:500;color:var(--blu-petrolio);">Km per tratta</p>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">${rigaTratte}</div>
+      ` : ''}
+
+      <p style="margin:0 0 8px;font-size:13px;font-weight:500;color:var(--blu-petrolio);">Città visitate</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">${cardCitta}</div>
+    `;
+  }
+</script>
+
+</body>
+</html>

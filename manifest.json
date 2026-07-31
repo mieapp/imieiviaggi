@@ -1,0 +1,36 @@
+{
+  "name": "I miei viaggi",
+  "short_name": "I miei viaggi",
+  "description": "Tieni traccia dei tuoi viaggi, tappa per tappa. Tutto salvato solo sul tuo dispositivo.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F6F1E7",
+  "theme_color": "#C97B3D",
+  "icons": [
+    {
+      "src": "icons/icona-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icona-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icona-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icona-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

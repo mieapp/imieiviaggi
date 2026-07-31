@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Itinerari - I miei viaggi</title>
+<link rel="stylesheet" href="css/stile.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icona-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icona-180.png">
+<meta name="theme-color" content="#C97B3D">
+<style>
+  .giorno-pill-mini {
+    flex-shrink: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    border: 0.5px solid var(--bordo);
+    background: #FFFFFF;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    min-width: 42px;
+  }
+  .giorno-pill-mini.selezionato { background: var(--blu-petrolio); border-color: var(--blu-petrolio); color: var(--carta-chiara); }
+  .giorno-pill-mini.in-intervallo { background: var(--ambra-chiaro); border-color: var(--ambra); }
+
+  /* Sfondo più tenue solo mentre si legge l'anteprima Tutto/Suggerito, per
+     migliorare la leggibilità del testo — non tocca le altre pagine. */
+  .app.sfondo-tenue::before {
+    opacity: 0.14 !important;
+  }
+</style>
+</head>
+<body>
+
+<div class="app con-footer">
+
+  <div class="app-header">
+    <div>
+      <p class="eyebrow" id="eyebrow-viaggio"></p>
+      <h1>Itinerari</h1>
+    </div>
+  </div>
+
+  <!-- Vista: selettore viaggio (mostrata solo se manca l'id nell'URL) -->
+  <div id="vista-selettore" style="display:none;padding:16px;">
+    <p style="font-size:13px;color:var(--testo-secondario);margin-bottom:12px;">Per quale viaggio vuoi pianificare?</p>
+    <div id="lista-viaggi-selettore" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <p id="nessun-viaggio" style="display:none;text-align:center;color:var(--testo-terziario);font-size:13px;padding:20px 0;">Nessun viaggio in corso al momento.</p>
+  </div>
+
+  <!-- Vista: elenco soggiorni -->
+  <div id="vista-elenco" style="display:none;padding:16px;flex-direction:column;gap:10px;">
+    <p id="nessun-soggiorno" style="display:none;text-align:center;color:var(--testo-terziario);font-size:13px;padding:20px 0;">Nessun soggiorno pianificato ancora.</p>
+    <div id="lista-soggiorni" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button class="btn-primario" id="btn-aggiungi-soggiorno">+ Aggiungi soggiorno</button>
+  </div>
+
+  <!-- Vista: aggiunta soggiorno -->
+  <div id="vista-aggiungi" style="display:none;padding:16px;flex-direction:column;gap:14px;">
+    <div class="card">
+      <p style="font-size:13px;font-weight:500;margin-bottom:8px;">Città</p>
+      <input type="text" id="ricerca-citta" placeholder="Cerca una città">
+      <div id="risultati-citta" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;"></div>
+      <p id="citta-scelta" style="margin-top:8px;font-size:13px;color:var(--verde-scuro);display:none;"></p>
+    </div>
+
+    <div>
+      <p style="font-size:13px;font-weight:500;margin-bottom:8px;">Da quale giorno a quale giorno?</p>
+      <div id="selettore-giorni-soggiorno" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      <p id="intervallo-scelto" style="margin-top:8px;font-size:13px;color:var(--testo-secondario);"></p>
+    </div>
+
+    <p id="errore-soggiorno" style="color:var(--rosso-mattone);font-size:13px;display:none;"></p>
+
+    <div style="display:flex;gap:10px;">
+      <button style="flex:1;height:44px;border-radius:var(--raggio-bottone);background:transparent;border:0.5px solid var(--bordo);color:var(--testo-secondario);font-size:14px;" id="btn-annulla-soggiorno">Annulla</button>
+      <button class="btn-primario" style="flex:1;" id="btn-salva-soggiorno">Salva soggiorno</button>
+    </div>
+  </div>
+
+  <!-- Vista: anteprima mini-guida (Tutto o Suggerito) -->
+  <div id="vista-anteprima" style="display:none;padding:16px;flex-direction:column;gap:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--blu-petrolio);cursor:pointer;font-size:14px;" id="btn-indietro-anteprima">← Indietro</span>
+      <span id="stato-anteprima" class="mono" style="font-size:11px;"></span>
+    </div>
+    <h2 id="titolo-anteprima" style="font-family:var(--font-display);font-size:18px;"></h2>
+    <div id="contenuto-anteprima" style="display:flex;flex-direction:column;gap:16px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button style="flex:1;height:44px;border-radius:var(--raggio-bottone);background:transparent;border:0.5px solid var(--bordo);color:var(--testo-secondario);font-size:14px;" id="btn-rigenera">Rigenera</button>
+      <button class="btn-primario" style="flex:1;" id="btn-esporta-anteprima">📄 Esporta / Condividi</button>
+    </div>
+  </div>
+
+  <!-- Vista: selezione attrazioni per Suggerito -->
+  <div id="vista-selezione" style="display:none;padding:16px;flex-direction:column;gap:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:var(--blu-petrolio);cursor:pointer;font-size:14px;" id="btn-indietro-selezione">← Indietro</span>
+    </div>
+    <h2 id="titolo-selezione" style="font-family:var(--font-display);font-size:18px;"></h2>
+    <p style="font-size:12px;color:var(--testo-secondario);">Seleziona le attrazioni da includere e scegli il giorno per ciascuna.</p>
+    <div id="lista-candidati-suggerito" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button class="btn-primario" id="btn-conferma-selezione">Conferma selezione</button>
+  </div>
+
+  <div class="app-footer">
+    <button class="tab" id="tab-viaggi">
+      <span>🗺️</span><span>Viaggi</span>
+    </button>
+    <button class="tab attivo" id="tab-pianifica">
+      <span>📅</span><span>Itinerari</span>
+    </button>
+    <button class="tab" id="tab-guida-footer">
+      <span>ℹ️</span><span>Guida</span>
+    </button>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+  import { ottieniTuttiViaggi, ottieniViaggio, aggiornaViaggio } from "./js/db-locale.js";
+  import { esportaItinerario } from "./js/export-itinerario.js";
+  import { condividiOScaricaPDF } from "./js/export-pdf.js";
+
+  const params = new URLSearchParams(window.location.search);
+  let viaggioId = params.get('id');
+  let datiViaggio = null;
+  let giorniViaggio = [];
+
+  document.getElementById('tab-viaggi').addEventListener('click', () => {
+    window.location.href = "index.html";
+  });
+  document.getElementById('tab-pianifica').addEventListener('click', () => {
+    location.reload();
+  });
+  document.getElementById('tab-guida-footer').addEventListener('click', () => {
+    window.location.href = "guida.html";
+  });
+
+  if (viaggioId) {
+    caricaViaggio();
+  } else {
+    mostraSelettoreViaggi();
+  }
+
+  async function mostraSelettoreViaggi() {
+    document.getElementById('vista-selettore').style.display = "block";
+
+    const tuttiIViaggi = await ottieniTuttiViaggi();
+    const viaggiInCorso = tuttiIViaggi.filter(v => (v.stato || "in corso") === "in corso");
+
+    const contenitore = document.getElementById('lista-viaggi-selettore');
+    if (viaggiInCorso.length === 0) {
+      document.getElementById('nessun-viaggio').style.display = "block";
+      return;
+    }
+
+    viaggiInCorso.forEach(v => {
+      const card = document.createElement('div');
+      card.style.cssText = "background:var(--ambra-chiaro);border:1px solid var(--ambra);border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;";
+      card.innerHTML = `<p style="font-weight:600;font-size:15px;color:var(--blu-petrolio);margin:0;">${v.nome}</p><span style="color:var(--ambra);font-size:18px;">→</span>`;
+      card.addEventListener('click', () => {
+        window.location.href = `pianificazione.html?id=${v.id}`;
+      });
+      contenitore.appendChild(card);
+    });
+  }
+
+  function formattaDataLocale(data) {
+    const anno = data.getFullYear();
+    const mese = String(data.getMonth() + 1).padStart(2, '0');
+    const giorno = String(data.getDate()).padStart(2, '0');
+    return `${anno}-${mese}-${giorno}`;
+  }
+
+  function calcolaGiorni(inizio, fine) {
+    const giorni = [];
+    let corrente = new Date(inizio + "T00:00:00");
+    const ultimo = new Date(fine + "T00:00:00");
+    while (corrente <= ultimo) {
+      giorni.push(formattaDataLocale(corrente));
+      corrente.setDate(corrente.getDate() + 1);
+    }
+    return giorni;
+  }
+
+  function formattaDataIT(iso) {
+    const [anno, mese, giorno] = iso.split('-');
+    return `${giorno}-${mese}`;
+  }
+
+  async function caricaViaggio() {
+    datiViaggio = await ottieniViaggio(viaggioId);
+    if (!datiViaggio) {
+      alert("Viaggio non trovato.");
+      window.location.href = "index.html";
+      return;
+    }
+    giorniViaggio = calcolaGiorni(datiViaggio.dataInizio, datiViaggio.dataFine);
+    document.getElementById('eyebrow-viaggio').textContent = datiViaggio.nome.toUpperCase();
+
+    document.getElementById('vista-elenco').style.display = "flex";
+    disegnaSoggiorni();
+
+    document.getElementById('btn-aggiungi-soggiorno').addEventListener('click', apriFormAggiunta);
+  }
+
+  const MESI_IT = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+
+  function formattaGiornoMese(iso) {
+    const [, mese, giorno] = iso.split('-').map(Number);
+    return `${giorno} ${MESI_IT[mese - 1]}`;
+  }
+
+  function aggiungiGiorniData(iso, n) {
+    const d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + n);
+    return formattaDataLocale(d);
+  }
+
+  function indiceGiorno(dataIso) {
+    return giorniViaggio.indexOf(dataIso) + 1;
+  }
+
+  function disegnaSoggiorni() {
+    const contenitore = document.getElementById('lista-soggiorni');
+    contenitore.innerHTML = "";
+    const soggiorni = datiViaggio.soggiorni || [];
+
+    if (soggiorni.length === 0) {
+      document.getElementById('nessun-soggiorno').style.display = "block";
+      return;
+    }
+    document.getElementById('nessun-soggiorno').style.display = "none";
+
+    soggiorni.forEach((s, indice) => {
+      const numeroGiorni = giorniViaggio.indexOf(s.giornoFine) - giorniViaggio.indexOf(s.giornoInizio) + 1;
+      const card = document.createElement('div');
+      card.className = "card";
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <p style="font-weight:600;font-size:15px;">${s.citta}</p>
+            <p class="mono" style="margin-top:4px;">${formattaGiornoMese(s.giornoInizio)} → ${formattaGiornoMese(s.giornoFine)} · ${numeroGiorni} giorni</p>
+          </div>
+          <span style="color:var(--rosso-mattone);font-size:13px;cursor:pointer;" class="btn-rimuovi-soggiorno">Rimuovi</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button style="flex:1;height:38px;border-radius:8px;background:var(--carta-chiara);border:0.5px solid var(--bordo);color:var(--blu-petrolio);font-size:13px;font-weight:500;" class="btn-tutto">Tutto</button>
+          <button style="flex:1;height:38px;border-radius:8px;background:var(--verde-salvia);border:none;color:#fff;font-size:13px;font-weight:500;" class="btn-suggerito">Suggerito</button>
+        </div>
+      `;
+      card.querySelector('.btn-rimuovi-soggiorno').addEventListener('click', () => rimuoviSoggiorno(indice));
+      card.querySelector('.btn-tutto').addEventListener('click', () => apriAnteprima(indice, 'tutto'));
+      card.querySelector('.btn-suggerito').addEventListener('click', () => apriAnteprima(indice, 'suggerito'));
+      contenitore.appendChild(card);
+    });
+  }
+
+  async function rimuoviSoggiorno(indice) {
+    if (!confirm("Rimuovere questo soggiorno pianificato?")) return;
+    const soggiorniAggiornati = (datiViaggio.soggiorni || []).filter((_, i) => i !== indice);
+    await aggiornaViaggio(viaggioId, { soggiorni: soggiorniAggiornati });
+    datiViaggio.soggiorni = soggiorniAggiornati;
+    disegnaSoggiorni();
+  }
+
+  // --- Anteprima mini-guida (Tutto / Suggerito) ---
+
+  let indiceSoggiornoCorrente = null;
+  let modalitaCorrente = null;
+
+  document.getElementById('btn-indietro-anteprima').addEventListener('click', () => {
+    document.getElementById('vista-anteprima').style.display = "none";
+    document.getElementById('vista-elenco').style.display = "flex";
+    document.querySelector('.app').classList.remove('sfondo-tenue');
+  });
+
+  async function apriAnteprima(indice, modalita) {
+    indiceSoggiornoCorrente = indice;
+    modalitaCorrente = modalita;
+    const soggiorno = datiViaggio.soggiorni[indice];
+
+    document.getElementById('vista-elenco').style.display = "none";
+    document.getElementById('vista-anteprima').style.display = "flex";
+    document.querySelector('.app').classList.add('sfondo-tenue');
+    document.getElementById('titolo-anteprima').textContent = `${soggiorno.citta} — ${modalita === 'tutto' ? 'Tutto' : 'Suggerito'}`;
+
+    if (soggiorno[modalita]) {
+      disegnaAnteprima(soggiorno, modalita);
+    } else {
+      await generaMiniGuida(indice, modalita);
+    }
+  }
+
+  document.getElementById('btn-rigenera').addEventListener('click', async () => {
+    await generaMiniGuida(indiceSoggiornoCorrente, modalitaCorrente, true);
+  });
+
+  document.getElementById('btn-esporta-anteprima').addEventListener('click', async () => {
+    const soggiorno = datiViaggio.soggiorni[indiceSoggiornoCorrente];
+    if (!soggiorno[modalitaCorrente]) return;
+    const { file, nomeFile } = esportaItinerario(soggiorno, modalitaCorrente, datiViaggio.nome);
+    await condividiOScaricaPDF(file, nomeFile, datiViaggio.nome);
+  });
+
+  function pulisciWikitext(testo) {
+    if (!testo) return "";
+    return testo
+      .replace(/\[\[([^\|\]]*\|)?([^\]]*)\]\]/g, '$2')
+      .replace(/'''?/g, '')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+  }
+
+  const SEZIONI_TUTTO = ["Da sapere", "Come orientarsi", "Cosa vedere", "Eventi e feste", "Cosa fare", "Acquisti", "Come divertirsi", "Dove mangiare", "Sicurezza", "Nei dintorni"];
+
+  function trovaSezioni(wikitext) {
+    const regex = /^==\s*([^=]+?)\s*==\s*$/gm;
+    const sezioni = [];
+    let match;
+    while ((match = regex.exec(wikitext)) !== null) {
+      sezioni.push({ titolo: match[1].trim(), inizio: match.index, fineIntestazione: match.index + match[0].length });
+    }
+    return sezioni;
+  }
+
+  function estraiTestoSezione(wikitext, nomeSezione) {
+    const sezioni = trovaSezioni(wikitext);
+    const normalizza = s => s.toLowerCase().trim();
+    const indice = sezioni.findIndex(s => normalizza(s.titolo) === normalizza(nomeSezione));
+    if (indice === -1) return null;
+    const inizio = sezioni[indice].fineIntestazione;
+    const fine = (indice + 1 < sezioni.length) ? sezioni[indice + 1].inizio : wikitext.length;
+    return wikitext.slice(inizio, fine).trim();
+  }
+
+  function convertiListingInRighe(match, tipo, parametri) {
+    const par = {};
+    parametri.split('|').forEach(coppia => {
+      const idx = coppia.indexOf('=');
+      if (idx === -1) return;
+      par[coppia.slice(0, idx).trim().toLowerCase()] = coppia.slice(idx + 1).trim();
+    });
+    if (!par.nome) return "";
+    const nome = pulisciWikitext(par.nome);
+    const descrizione = pulisciWikitext(par.descrizione || "");
+    return `\n• ${nome}${descrizione ? " — " + descrizione : ""}\n`;
+  }
+
+  function pulisciTestoLibero(testo) {
+    if (!testo) return "";
+    let pulito = testo;
+
+    // Schede strutturate (forma breve e generica) diventano righe puntate leggibili
+    pulito = pulito.replace(/\{\{\s*(see|eat|do|buy|drink|sleep)\s*\|([^}]*)\}\}/gi, (m, tipo, parametri) => convertiListingInRighe(m, tipo, parametri));
+    pulito = pulito.replace(/\{\{\s*listing\s*\|([^}]*)\}\}/gi, (m, parametri) => convertiListingInRighe(m, "listing", parametri));
+
+    // Sottotitoli (=== Titolo ===) diventano una riga propria
+    pulito = pulito.replace(/===\s*([^=]+?)\s*===/g, '\n\n$1:\n');
+
+    // Immagini/file, riferimenti, tag html residui
+    pulito = pulito.replace(/\[\[(File|Immagine|Image):[^\]]*\]\]/gi, '');
+    pulito = pulito.replace(/<ref[^>]*>.*?<\/ref>/gis, '');
+    pulito = pulito.replace(/<ref[^>]*\/>/gi, '');
+    pulito = pulito.replace(/<[^>]+>/g, '');
+
+    // Link e formattazione wiki residua
+    pulito = pulito.replace(/\[\[([^\|\]]*\|)?([^\]]*)\]\]/g, '$2');
+    pulito = pulito.replace(/'''?/g, '');
+    pulito = pulito.replace(/\{\{[^}]*\}\}/g, ''); // altri modelli non gestiti, rimossi
+
+    pulito = pulito.replace(/\n{3,}/g, '\n\n').trim();
+    return pulito;
+  }
+
+  function estraiVociDaElencoPuntato(wikitextSezione) {
+    if (!wikitextSezione) return [];
+    const righe = wikitextSezione.split('\n').filter(r => r.trim().startsWith('*'));
+    return righe.map(riga => {
+      let testo = riga.replace(/^\*+\s*/, '');
+      // Se la riga contiene comunque un modello con nome=, usiamo quello
+      const parNome = /nome\s*=\s*([^|}]*)/i.exec(testo);
+      if (parNome) {
+        const parDescr = /descrizione\s*=\s*([^|}]*)/i.exec(testo);
+        return { nome: pulisciWikitext(parNome[1]), descrizione: parDescr ? pulisciWikitext(parDescr[1]) : "" };
+      }
+      testo = pulisciWikitext(testo.replace(/\{\{[^}]*\}\}/g, ''));
+      const separatore = testo.search(/[-–—:]/);
+      if (separatore > 3 && separatore < 60) {
+        return { nome: testo.slice(0, separatore).trim(), descrizione: testo.slice(separatore + 1).trim() };
+      }
+      const parole = testo.split(' ');
+      const anteprimaNome = parole.slice(0, 6).join(' ') + (parole.length > 6 ? '…' : '');
+      return { nome: anteprimaNome, descrizione: testo };
+    }).filter(v => v.nome && v.nome.length > 1);
+  }
+
+  async function cercaPaginaWikivoyage(nomeCitta) {
+    const url = `https://it.wikivoyage.org/w/api.php?action=opensearch&search=${encodeURIComponent(nomeCitta)}&limit=1&namespace=0&format=json&origin=*`;
+    const risposta = await fetch(url);
+    const dati = await risposta.json();
+    return (dati[1] && dati[1][0]) ? dati[1][0] : null;
+  }
+
+  async function recuperaWikitext(titolo) {
+    const url = `https://it.wikivoyage.org/w/api.php?action=parse&page=${encodeURIComponent(titolo)}&prop=wikitext&format=json&origin=*`;
+    const risposta = await fetch(url);
+    const dati = await risposta.json();
+    if (dati.error) return null;
+    return (dati.parse && dati.parse.wikitext) ? dati.parse.wikitext['*'] : null;
+  }
+
+  async function trovaArticoloWikivoyage(nomeCitta, paese) {
+    // Wikivoyage usa spesso "Città (Nazione)" per distinguere l'articolo vero
+    // da eventuali pagine di disambiguazione corte con lo stesso nome breve
+    // (es. "Colombo" persona/luoghi vari vs "Colombo (Sri Lanka)" la città).
+    if (paese) {
+      const titoloTentativo = `${nomeCitta} (${paese})`;
+      const wikitextTentativo = await recuperaWikitext(titoloTentativo);
+      if (wikitextTentativo && wikitextTentativo.length > 500) {
+        return { titolo: titoloTentativo, wikitext: wikitextTentativo };
+      }
+    }
+    const titoloTrovato = await cercaPaginaWikivoyage(nomeCitta);
+    if (!titoloTrovato) return null;
+    const wikitext = await recuperaWikitext(titoloTrovato);
+    return wikitext ? { titolo: titoloTrovato, wikitext } : null;
+  }
+
+  function estraiListing(wikitext, tipo) {
+    const risultati = [];
+
+    function estraiParametri(stringaParametri) {
+      const parametri = {};
+      stringaParametri.split('|').forEach(coppia => {
+        const idx = coppia.indexOf('=');
+        if (idx === -1) return;
+        const chiave = coppia.slice(0, idx).trim().toLowerCase();
+        const valore = coppia.slice(idx + 1).trim();
+        parametri[chiave] = valore;
+      });
+      return parametri;
+    }
+
+    // Forma breve: {{see | nome=... }} oppure {{eat | nome=... }}
+    const regexBreve = new RegExp(`\\{\\{\\s*${tipo}\\s*\\|([^}]*)\\}\\}`, 'gi');
+    let match;
+    while ((match = regexBreve.exec(wikitext)) !== null) {
+      const parametri = estraiParametri(match[1]);
+      if (parametri.nome) {
+        risultati.push({ nome: pulisciWikitext(parametri.nome), descrizione: pulisciWikitext(parametri.descrizione || "") });
+      }
+    }
+
+    // Forma generica: {{listing | tipo=see | nome=... }}
+    const regexGenerica = /\{\{\s*listing\s*\|([^}]*)\}\}/gi;
+    while ((match = regexGenerica.exec(wikitext)) !== null) {
+      const parametri = estraiParametri(match[1]);
+      if (parametri.tipo === tipo && parametri.nome) {
+        risultati.push({ nome: pulisciWikitext(parametri.nome), descrizione: pulisciWikitext(parametri.descrizione || "") });
+      }
+    }
+
+    return risultati;
+  }
+
+  async function salvaSoggiorno(indice, soggiorno) {
+    const soggiorniAggiornati = [...datiViaggio.soggiorni];
+    soggiorniAggiornati[indice] = soggiorno;
+    await aggiornaViaggio(viaggioId, { soggiorni: soggiorniAggiornati });
+    datiViaggio.soggiorni = soggiorniAggiornati;
+  }
+
+  function mostraSelezioneSuggerito(indice, candidati, fonte) {
+    const soggiorno = datiViaggio.soggiorni[indice];
+    const giorniSoggiorno = giorniViaggio.slice(
+      giorniViaggio.indexOf(soggiorno.giornoInizio),
+      giorniViaggio.indexOf(soggiorno.giornoFine) + 1
+    );
+    const selezioni = new Map();
+
+    document.getElementById('vista-anteprima').style.display = "none";
+    document.getElementById('vista-selezione').style.display = "flex";
+    document.getElementById('titolo-selezione').textContent = `${soggiorno.citta} — scegli le attrazioni`;
+
+    const contenitore = document.getElementById('lista-candidati-suggerito');
+    contenitore.innerHTML = "";
+
+    candidati.forEach((c, i) => {
+      const riga = document.createElement('div');
+      riga.className = "card";
+      riga.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+      riga.innerHTML = `
+        <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
+          <input type="checkbox" style="margin-top:3px;">
+          <span>
+            <p style="font-weight:600;font-size:20px;">${c.nome}</p>
+            ${c.descrizione ? `<p style="font-size:18px;color:#3A3830;margin-top:4px;line-height:1.5;">${c.descrizione}</p>` : ""}
+          </span>
+        </label>
+        <div class="selettore-giorno-candidato" style="display:none;gap:6px;flex-wrap:wrap;padding-left:26px;"></div>
+      `;
+      const checkbox = riga.querySelector('input[type="checkbox"]');
+      const selettoreGiorno = riga.querySelector('.selettore-giorno-candidato');
+
+      giorniSoggiorno.forEach(giorno => {
+        const d = new Date(giorno + "T00:00:00");
+        const pill = document.createElement('div');
+        pill.className = "giorno-pill-mini";
+        pill.textContent = `${d.getDate()}/${d.getMonth() + 1}`;
+        pill.addEventListener('click', () => {
+          selettoreGiorno.querySelectorAll('.giorno-pill-mini').forEach(p => p.classList.remove('selezionato'));
+          pill.classList.add('selezionato');
+          selezioni.set(i, giorno);
+        });
+        selettoreGiorno.appendChild(pill);
+      });
+
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          selettoreGiorno.style.display = "flex";
+          if (!selezioni.has(i)) {
+            selezioni.set(i, giorniSoggiorno[0]);
+            selettoreGiorno.querySelector('.giorno-pill-mini').classList.add('selezionato');
+          }
+        } else {
+          selettoreGiorno.style.display = "none";
+          selezioni.delete(i);
+        }
+      });
+
+      contenitore.appendChild(riga);
+    });
+
+    document.getElementById('btn-conferma-selezione').onclick = () => {
+      if (selezioni.size === 0) {
+        alert("Seleziona almeno un'attrazione.");
+        return;
+      }
+      const giorni = giorniSoggiorno.map(giorno => ({
+        vedere: candidati.filter((_, i) => selezioni.get(i) === giorno)
+      }));
+      soggiorno.suggerito = { giorni, fonte };
+      salvaSoggiorno(indice, soggiorno);
+
+      document.getElementById('vista-selezione').style.display = "none";
+      document.getElementById('vista-anteprima').style.display = "flex";
+      disegnaAnteprima(soggiorno, "suggerito");
+    };
+  }
+
+  document.getElementById('btn-indietro-selezione').addEventListener('click', () => {
+    document.getElementById('vista-selezione').style.display = "none";
+    document.getElementById('vista-elenco').style.display = "flex";
+    document.querySelector('.app').classList.remove('sfondo-tenue');
+  });
+
+  async function generaMiniGuida(indice, modalita) {
+    const soggiorno = datiViaggio.soggiorni[indice];
+    const statoEl = document.getElementById('stato-anteprima');
+    const contenitore = document.getElementById('contenuto-anteprima');
+    contenitore.innerHTML = "";
+    statoEl.textContent = "Cerco la guida su Wikivoyage...";
+
+    try {
+      statoEl.textContent = "Cerco la guida su Wikivoyage...";
+      const articolo = await trovaArticoloWikivoyage(soggiorno.citta, soggiorno.paese);
+      if (!articolo) {
+        statoEl.textContent = "";
+        contenitore.innerHTML = `<p style="font-size:13px;color:var(--testo-terziario);text-align:center;">Nessuna pagina Wikivoyage trovata per "${soggiorno.citta}".</p>`;
+        return;
+      }
+      const titolo = articolo.titolo;
+      const wikitext = articolo.wikitext;
+
+      if (modalita === "tutto") {
+        const sezioniEstratte = SEZIONI_TUTTO
+          .map(nome => ({ titolo: nome, testo: pulisciTestoLibero(estraiTestoSezione(wikitext, nome)) }))
+          .filter(s => s.testo && s.testo.length > 0);
+        if (sezioniEstratte.length === 0) {
+          statoEl.textContent = "";
+          contenitore.innerHTML = `<p style="font-size:13px;color:#3A3830;text-align:center;">Nessuna sezione riconosciuta nella pagina Wikivoyage "${titolo}".</p>`;
+          return;
+        }
+        const contenutoSalvato = { sezioni: sezioniEstratte, fonte: titolo };
+        soggiorno[modalita] = contenutoSalvato;
+        salvaSoggiorno(indice, soggiorno);
+        statoEl.textContent = "";
+        disegnaAnteprima(soggiorno, modalita);
+      } else {
+        let vedere = estraiListing(wikitext, "see");
+        if (vedere.length === 0) {
+          vedere = estraiVociDaElencoPuntato(estraiTestoSezione(wikitext, "Cosa vedere"));
+        }
+        if (vedere.length === 0) {
+          statoEl.textContent = "";
+          contenitore.innerHTML = `<p style="font-size:13px;color:#3A3830;text-align:center;">Nessun luogo trovato nella pagina "${titolo}", né come scheda né come elenco.</p>`;
+          return;
+        }
+        statoEl.textContent = "";
+        mostraSelezioneSuggerito(indice, vedere, titolo);
+      }
+    } catch (err) {
+      console.error("Errore generazione mini-guida:", err);
+      statoEl.textContent = "";
+      contenitore.innerHTML = `<p style="font-size:13px;color:var(--testo-terziario);text-align:center;">Connessione assente o errore imprevisto. Riprova.</p>`;
+    }
+  }
+
+  function disegnaAnteprima(soggiorno, modalita) {
+    const contenitore = document.getElementById('contenuto-anteprima');
+    contenitore.innerHTML = "";
+    const dati = soggiorno[modalita];
+    if (!dati) return;
+
+    function blocco(titolo, elementi) {
+      if (!elementi || elementi.length === 0) return "";
+      return `
+        <div>
+          <p style="font-weight:600;font-size:22px;color:var(--blu-petrolio);margin-bottom:12px;">${titolo}</p>
+          ${elementi.map(el => `
+            <div style="margin-bottom:16px;">
+              <p style="font-weight:600;font-size:20px;color:var(--blu-petrolio);">${el.nome}</p>
+              ${el.descrizione ? `<p style="font-size:18px;color:#3A3830;margin-top:5px;line-height:1.55;">${el.descrizione}</p>` : ""}
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    if (modalita === "tutto") {
+      dati.sezioni.forEach(s => {
+        contenitore.innerHTML += `
+          <div>
+            <p style="font-weight:600;font-size:22px;color:var(--blu-petrolio);margin-bottom:10px;">${s.titolo}</p>
+            <p style="font-size:18px;color:#3A3830;white-space:pre-line;line-height:1.6;">${s.testo}</p>
+          </div>
+        `;
+      });
+    } else {
+      dati.giorni.forEach((g, i) => {
+        contenitore.innerHTML += `<p class="mono" style="font-size:15px;color:var(--ambra-scuro);">${formattaGiornoMese(aggiungiGiorniData(soggiorno.giornoInizio, i)).toUpperCase()}</p>`;
+        contenitore.innerHTML += blocco("🏛️ Cosa vedere", g.vedere);
+      });
+    }
+
+    contenitore.innerHTML += `<p style="font-size:10px;color:#3A3830;text-align:center;">Contenuti da Wikivoyage, licenza CC BY-SA — pagina "${dati.fonte}"</p>`;
+  }
+
+  let cittaSelezionata = null;
+  let giornoInizioSelezionato = null;
+  let giornoFineSelezionato = null;
+
+  function apriFormAggiunta() {
+    cittaSelezionata = null;
+    giornoInizioSelezionato = null;
+    giornoFineSelezionato = null;
+    document.getElementById('ricerca-citta').value = "";
+    document.getElementById('citta-scelta').style.display = "none";
+    document.getElementById('risultati-citta').innerHTML = "";
+    document.getElementById('errore-soggiorno').style.display = "none";
+    disegnaSelettoreGiorniSoggiorno();
+
+    document.getElementById('vista-elenco').style.display = "none";
+    document.getElementById('vista-aggiungi').style.display = "flex";
+  }
+
+  document.getElementById('btn-annulla-soggiorno').addEventListener('click', () => {
+    document.getElementById('vista-aggiungi').style.display = "none";
+    document.getElementById('vista-elenco').style.display = "flex";
+  });
+
+  let timerRicercaCitta = null;
+  document.getElementById('ricerca-citta').addEventListener('input', (e) => {
+    clearTimeout(timerRicercaCitta);
+    const testo = e.target.value.trim();
+    if (testo.length < 3) {
+      document.getElementById('risultati-citta').innerHTML = "";
+      return;
+    }
+    timerRicercaCitta = setTimeout(() => cercaCitta(testo), 500);
+  });
+
+  async function cercaCitta(testo) {
+    const contenitore = document.getElementById('risultati-citta');
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(testo)}&format=json&limit=5&featureType=city`;
+      const risposta = await fetch(url, { headers: { "Accept-Language": "it" } });
+      const risultati = await risposta.json();
+      contenitore.innerHTML = "";
+      if (risultati.length === 0) {
+        contenitore.innerHTML = `<p style="font-size:12px;color:var(--testo-terziario);">Nessun risultato. Prova un altro nome.</p>`;
+        return;
+      }
+      risultati.forEach(r => {
+        const voce = document.createElement('div');
+        voce.style.cssText = "padding:8px 10px;background:var(--carta-chiara);border-radius:8px;font-size:13px;cursor:pointer;";
+        voce.textContent = r.display_name;
+        voce.addEventListener('click', () => {
+          const parti = r.display_name.split(',').map(p => p.trim());
+          cittaSelezionata = {
+            nome: parti[0],
+            paese: parti[parti.length - 1],
+            lat: parseFloat(r.lat),
+            lng: parseFloat(r.lon)
+          };
+          document.getElementById('ricerca-citta').value = r.display_name;
+          contenitore.innerHTML = "";
+          const p = document.getElementById('citta-scelta');
+          p.textContent = `Città selezionata: ${cittaSelezionata.nome}`;
+          p.style.display = "block";
+        });
+        contenitore.appendChild(voce);
+      });
+    } catch (err) {
+      console.error("Errore ricerca città:", err);
+      contenitore.innerHTML = `<p style="font-size:12px;color:var(--testo-terziario);">Connessione assente o ricerca non riuscita.</p>`;
+    }
+  }
+
+  function disegnaSelettoreGiorniSoggiorno() {
+    const contenitore = document.getElementById('selettore-giorni-soggiorno');
+    contenitore.innerHTML = "";
+    giorniViaggio.forEach((giorno, indice) => {
+      const d = new Date(giorno + "T00:00:00");
+      const pill = document.createElement('div');
+      pill.className = "giorno-pill-mini";
+      pill.textContent = `${d.getDate()}/${d.getMonth() + 1}`;
+      pill.addEventListener('click', () => selezionaGiornoSoggiorno(giorno));
+      contenitore.appendChild(pill);
+    });
+    aggiornaEvidenziazioneGiorni();
+  }
+
+  function selezionaGiornoSoggiorno(giorno) {
+    if (!giornoInizioSelezionato || (giornoInizioSelezionato && giornoFineSelezionato)) {
+      giornoInizioSelezionato = giorno;
+      giornoFineSelezionato = null;
+    } else {
+      if (giorno < giornoInizioSelezionato) {
+        giornoFineSelezionato = giornoInizioSelezionato;
+        giornoInizioSelezionato = giorno;
+      } else {
+        giornoFineSelezionato = giorno;
+      }
+    }
+    aggiornaEvidenziazioneGiorni();
+  }
+
+  function aggiornaEvidenziazioneGiorni() {
+    const pills = document.querySelectorAll('#selettore-giorni-soggiorno .giorno-pill-mini');
+    pills.forEach((pill, indice) => {
+      const giorno = giorniViaggio[indice];
+      pill.classList.remove('selezionato', 'in-intervallo');
+      if (giorno === giornoInizioSelezionato || giorno === giornoFineSelezionato) {
+        pill.classList.add('selezionato');
+      } else if (giornoInizioSelezionato && giornoFineSelezionato && giorno > giornoInizioSelezionato && giorno < giornoFineSelezionato) {
+        pill.classList.add('in-intervallo');
+      }
+    });
+
+    const p = document.getElementById('intervallo-scelto');
+    if (giornoInizioSelezionato && giornoFineSelezionato) {
+      const numeroGiorni = giorniViaggio.indexOf(giornoFineSelezionato) - giorniViaggio.indexOf(giornoInizioSelezionato) + 1;
+      p.textContent = `Dal ${formattaDataIT(giornoInizioSelezionato)} al ${formattaDataIT(giornoFineSelezionato)} (${numeroGiorni} giorni)`;
+    } else if (giornoInizioSelezionato) {
+      p.textContent = `Inizio: ${formattaDataIT(giornoInizioSelezionato)} — tocca il giorno finale`;
+    } else {
+      p.textContent = "";
+    }
+  }
+
+  document.getElementById('btn-salva-soggiorno').addEventListener('click', async () => {
+    const erroreEl = document.getElementById('errore-soggiorno');
+    erroreEl.style.display = "none";
+
+    if (!cittaSelezionata) {
+      erroreEl.textContent = "Cerca e seleziona una città.";
+      erroreEl.style.display = "block";
+      return;
+    }
+    if (!giornoInizioSelezionato || !giornoFineSelezionato) {
+      erroreEl.textContent = "Seleziona il giorno di inizio e quello di fine.";
+      erroreEl.style.display = "block";
+      return;
+    }
+
+    const nuovoSoggiorno = {
+      citta: cittaSelezionata.nome,
+      paese: cittaSelezionata.paese || null,
+      lat: cittaSelezionata.lat,
+      lng: cittaSelezionata.lng,
+      giornoInizio: giornoInizioSelezionato,
+      giornoFine: giornoFineSelezionato,
+      tutto: null,
+      suggerito: null
+    };
+
+    const soggiorniAggiornati = [...(datiViaggio.soggiorni || []), nuovoSoggiorno];
+    await aggiornaViaggio(viaggioId, { soggiorni: soggiorniAggiornati });
+
+    datiViaggio.soggiorni = soggiorniAggiornati;
+    disegnaSoggiorni();
+
+    document.getElementById('vista-aggiungi').style.display = "none";
+    document.getElementById('vista-elenco').style.display = "flex";
+  });
+</script>
+
+</body>
+</html>

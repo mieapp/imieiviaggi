@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nuovo viaggio - I miei viaggi</title>
+<link rel="stylesheet" href="css/stile.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icona-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icona-180.png">
+<meta name="theme-color" content="#C97B3D">
+</head>
+<body>
+
+<div class="app">
+
+  <div class="app-header" style="justify-content:flex-start;gap:16px;">
+    <span style="color:var(--testo-header);cursor:pointer;" id="btn-annulla">Annulla</span>
+    <h1 style="font-size:17px;">Nuovo viaggio</h1>
+  </div>
+
+  <div class="contenuto-centrato" style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+    <div>
+      <label for="nome" style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Nome del viaggio</label>
+      <input type="text" id="nome" placeholder="es. Norvegia">
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;">
+        <label for="data-inizio" style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Data inizio</label>
+        <input type="date" id="data-inizio">
+      </div>
+      <div style="flex:1;">
+        <label for="data-fine" style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Data fine</label>
+        <input type="date" id="data-fine">
+      </div>
+    </div>
+
+    <p id="errore" style="color:var(--rosso-mattone);font-size:13px;display:none;"></p>
+
+    <button class="btn-primario" id="btn-crea">Crea viaggio</button>
+  </div>
+
+</div>
+
+<script type="module">
+  import { creaViaggio } from "./js/db-locale.js";
+
+  document.getElementById('btn-annulla').addEventListener('click', () => {
+    window.location.href = "index.html";
+  });
+
+  const paragrafoErrore = document.getElementById('errore');
+
+  function mostraErrore(messaggio) {
+    paragrafoErrore.textContent = messaggio;
+    paragrafoErrore.style.display = "block";
+  }
+
+  document.getElementById('btn-crea').addEventListener('click', async () => {
+    paragrafoErrore.style.display = "none";
+
+    const nome = document.getElementById('nome').value.trim();
+    const dataInizio = document.getElementById('data-inizio').value;
+    const dataFine = document.getElementById('data-fine').value;
+
+    if (!nome) {
+      mostraErrore("Inserisci il nome del viaggio.");
+      return;
+    }
+    if (!dataInizio || !dataFine) {
+      mostraErrore("Inserisci entrambe le date.");
+      return;
+    }
+    if (dataFine < dataInizio) {
+      mostraErrore("La data fine non può essere precedente alla data inizio.");
+      return;
+    }
+
+    await creaViaggio({
+      nome,
+      dataInizio,
+      dataFine,
+      immagineCopertina: null,
+      stato: "in corso",
+      tipiPersonalizzati: [],
+      soggiorni: []
+    });
+
+    window.location.href = "index.html";
+  });
+</script>
+
+</body>
+</html>

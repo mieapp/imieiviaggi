@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gestione viaggio - I miei viaggi</title>
+<link rel="stylesheet" href="css/stile.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icona-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icona-180.png">
+<meta name="theme-color" content="#C97B3D">
+</head>
+<body>
+
+<div class="app">
+
+  <div class="app-header" style="justify-content:flex-start;gap:16px;">
+    <span style="color:var(--testo-header);cursor:pointer;" id="btn-indietro">← Indietro</span>
+    <h1 style="font-size:17px;">Gestione viaggio</h1>
+  </div>
+
+  <div class="contenuto-centrato" style="padding:16px;display:flex;flex-direction:column;gap:22px;">
+
+    <!-- Info viaggio -->
+    <section>
+      <h2 style="font-family:var(--font-display);font-size:16px;margin-bottom:10px;">Info viaggio</h2>
+      <div class="card" style="display:flex;flex-direction:column;gap:12px;">
+
+        <div>
+          <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Copertina</label>
+          <div id="anteprima-copertina" style="display:none;margin-bottom:8px;">
+            <img id="img-copertina" style="width:100%;aspect-ratio:960/475;object-fit:cover;border-radius:8px;display:block;">
+          </div>
+          <button type="button" id="btn-cambia-copertina" style="width:100%;height:40px;border-radius:8px;background:#FFFFFF;border:0.5px dashed var(--bordo);color:var(--testo-secondario);font-size:13px;cursor:pointer;">🖼️ Scegli immagine di copertina</button>
+          <input type="file" id="input-copertina" accept="image/*" style="display:none">
+          <p id="copertina-stato" style="font-size:12px;color:var(--testo-terziario);margin-top:6px;display:none;"></p>
+        </div>
+
+        <div>
+          <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Nome</label>
+          <input type="text" id="nome">
+        </div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Data inizio</label>
+            <input type="date" id="data-inizio">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Data fine</label>
+            <input type="date" id="data-fine">
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px;">Stato</label>
+          <div style="display:flex;gap:8px;">
+            <span class="chip" id="stato-in-corso" style="flex:1;justify-content:center;">In corso</span>
+            <span class="chip" id="stato-concluso" style="flex:1;justify-content:center;">Concluso</span>
+          </div>
+        </div>
+
+        <button class="btn-primario" id="btn-salva-info">Salva info</button>
+      </div>
+    </section>
+
+    <!-- Tipi di tappa personalizzati -->
+    <section>
+      <h2 style="font-family:var(--font-display);font-size:16px;margin-bottom:10px;">Tipi di tappa personalizzati</h2>
+      <div id="lista-tipi" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px;">
+        <input type="text" id="nuovo-tipo-nome" placeholder="Nome (es. Farmacia)">
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="text" id="nuovo-tipo-icona" placeholder="Emoji (es. 💊)" style="flex:1;">
+          <input type="color" id="nuovo-tipo-colore" value="#8B8577" style="width:44px;height:38px;padding:2px;border-radius:8px;border:0.5px solid var(--bordo);">
+        </div>
+        <button class="btn-primario" id="btn-aggiungi-tipo">Aggiungi tipo</button>
+      </div>
+    </section>
+
+    <!-- Backup -->
+    <section>
+      <h2 style="font-family:var(--font-display);font-size:16px;margin-bottom:10px;">Backup</h2>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px;">
+        <p style="font-size:13px;color:var(--testo-secondario);margin:0;">Questo viaggio è salvato solo su questo dispositivo. Esporta un file di backup ogni tanto: se il telefono si perde o disinstalli l'app, senza un backup il viaggio va perso per sempre.</p>
+        <p id="ultimo-backup-info" style="font-size:12px;color:var(--testo-terziario);margin:0;"></p>
+        <button class="btn-primario" id="btn-esporta-backup">⬇️ Esporta backup di questo viaggio</button>
+      </div>
+    </section>
+
+    <!-- Elimina viaggio -->
+    <section>
+      <button style="width:100%;height:44px;border-radius:var(--raggio-bottone);background:transparent;border:1px solid var(--rosso-mattone);color:var(--rosso-mattone);font-weight:500;font-size:14px;cursor:pointer;" id="btn-elimina-viaggio">Elimina viaggio</button>
+    </section>
+
+  </div>
+
+</div>
+
+<script type="module">
+  import { ottieniViaggio, aggiornaViaggio, eliminaViaggio, registraBackupEsportato, ottieniTappePerViaggio } from "./js/db-locale.js";
+
+  const params = new URLSearchParams(window.location.search);
+  const viaggioId = params.get('id');
+
+  if (!viaggioId) {
+    alert("Nessun viaggio specificato.");
+    window.location.href = "index.html";
+  }
+
+  let datiViaggio = null;
+
+  document.getElementById('btn-indietro').addEventListener('click', () => {
+    window.location.href = `viaggio.html?id=${viaggioId}`;
+  });
+
+  caricaViaggio();
+
+  async function caricaViaggio() {
+    datiViaggio = await ottieniViaggio(viaggioId);
+    if (!datiViaggio) {
+      alert("Viaggio non trovato.");
+      window.location.href = "index.html";
+      return;
+    }
+
+    document.getElementById('nome').value = datiViaggio.nome || "";
+    document.getElementById('data-inizio').value = datiViaggio.dataInizio || "";
+    document.getElementById('data-fine').value = datiViaggio.dataFine || "";
+
+    statoSelezionato = datiViaggio.stato || "in corso";
+    aggiornaChipStato();
+
+    copertinaBase64 = datiViaggio.immagineCopertina || null;
+    if (copertinaBase64) {
+      document.getElementById('img-copertina').src = copertinaBase64;
+      document.getElementById('anteprima-copertina').style.display = "block";
+    }
+
+    aggiornaInfoUltimoBackup();
+    disegnaTipiPersonalizzati();
+  }
+
+  function aggiornaInfoUltimoBackup() {
+    const el = document.getElementById('ultimo-backup-info');
+    if (datiViaggio.ultimoBackup) {
+      const d = new Date(datiViaggio.ultimoBackup);
+      el.textContent = `Ultimo backup esportato: ${d.toLocaleDateString('it-IT')} alle ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}.`;
+    } else {
+      el.textContent = "Nessun backup esportato finora per questo viaggio.";
+    }
+  }
+
+  // --- Copertina viaggio ---
+
+  let copertinaBase64 = null;
+
+  function comprimiImmagine(file, dimensioneMax = 1000, qualita = 0.75) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height && width > dimensioneMax) {
+            height = Math.round(height * (dimensioneMax / width));
+            width = dimensioneMax;
+          } else if (height > dimensioneMax) {
+            width = Math.round(width * (dimensioneMax / height));
+            height = dimensioneMax;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', qualita));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('btn-cambia-copertina').addEventListener('click', () => {
+    document.getElementById('input-copertina').click();
+  });
+
+  document.getElementById('input-copertina').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const statoEl = document.getElementById('copertina-stato');
+    statoEl.style.display = "block";
+    statoEl.textContent = "Comprimo l'immagine...";
+    try {
+      copertinaBase64 = await comprimiImmagine(file);
+      document.getElementById('img-copertina').src = copertinaBase64;
+      document.getElementById('anteprima-copertina').style.display = "block";
+
+      await aggiornaViaggio(viaggioId, { immagineCopertina: copertinaBase64 });
+      datiViaggio.immagineCopertina = copertinaBase64;
+
+      const kb = Math.round((copertinaBase64.length * 0.75) / 1024);
+      statoEl.textContent = `Copertina salvata (~${kb} KB).`;
+    } catch (err) {
+      console.error(err);
+      statoEl.textContent = "Errore durante la lettura dell'immagine. Riprova.";
+    }
+  });
+
+  // --- Stato viaggio (in corso / concluso) ---
+
+  let statoSelezionato = "in corso";
+
+  function aggiornaChipStato() {
+    document.getElementById('stato-in-corso').classList.toggle('attivo', statoSelezionato === "in corso");
+    document.getElementById('stato-concluso').classList.toggle('attivo', statoSelezionato === "concluso");
+  }
+
+  document.getElementById('stato-in-corso').addEventListener('click', () => {
+    statoSelezionato = "in corso";
+    aggiornaChipStato();
+  });
+  document.getElementById('stato-concluso').addEventListener('click', () => {
+    statoSelezionato = "concluso";
+    aggiornaChipStato();
+  });
+
+  // --- Info viaggio ---
+
+  document.getElementById('btn-salva-info').addEventListener('click', async () => {
+    const nome = document.getElementById('nome').value.trim();
+    const dataInizio = document.getElementById('data-inizio').value;
+    const dataFine = document.getElementById('data-fine').value;
+
+    if (!nome || !dataInizio || !dataFine) {
+      alert("Compila nome e date.");
+      return;
+    }
+
+    await aggiornaViaggio(viaggioId, { nome, dataInizio, dataFine, stato: statoSelezionato });
+
+    datiViaggio.nome = nome;
+    datiViaggio.dataInizio = dataInizio;
+    datiViaggio.dataFine = dataFine;
+    datiViaggio.stato = statoSelezionato;
+    alert("Info salvate.");
+  });
+
+  // --- Tipi di tappa personalizzati ---
+
+  function disegnaTipiPersonalizzati() {
+    const contenitore = document.getElementById('lista-tipi');
+    contenitore.innerHTML = "";
+    const tipi = datiViaggio.tipiPersonalizzati || [];
+
+    if (tipi.length === 0) {
+      contenitore.innerHTML = `<p style="font-size:13px;color:var(--testo-terziario);">Nessun tipo personalizzato ancora.</p>`;
+      return;
+    }
+
+    tipi.forEach((tipo, indice) => {
+      const riga = document.createElement('div');
+      riga.className = "card";
+
+      riga.innerHTML = `
+        <div class="vista-normale" style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:18px;">${tipo.icona}</span>
+            <span style="font-weight:500;font-size:14px;">${tipo.nome}</span>
+            <span style="width:14px;height:14px;border-radius:50%;background:${tipo.colore};display:inline-block;"></span>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <span style="color:var(--blu-petrolio);cursor:pointer;font-size:13px;" class="btn-modifica">Modifica</span>
+            <span style="color:var(--rosso-mattone);cursor:pointer;font-size:13px;" class="btn-rimuovi">Rimuovi</span>
+          </div>
+        </div>
+        <div class="vista-modifica" style="display:none;flex-direction:column;gap:8px;">
+          <input type="text" class="input-nome" value="${tipo.nome}" placeholder="Nome">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <input type="text" class="input-icona" value="${tipo.icona}" placeholder="Emoji" style="flex:1;">
+            <input type="color" class="input-colore" value="${tipo.colore}" style="width:44px;height:38px;padding:2px;border-radius:8px;border:0.5px solid var(--bordo);">
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-primario btn-salva-modifica" style="flex:1;">Salva</button>
+            <button style="flex:1;height:44px;border-radius:var(--raggio-bottone);background:transparent;border:0.5px solid var(--bordo);color:var(--testo-secondario);font-size:14px;" class="btn-annulla-modifica">Annulla</button>
+          </div>
+        </div>
+      `;
+
+      const vistaNormale = riga.querySelector('.vista-normale');
+      const vistaModifica = riga.querySelector('.vista-modifica');
+
+      riga.querySelector('.btn-modifica').addEventListener('click', () => {
+        vistaNormale.style.display = "none";
+        vistaModifica.style.display = "flex";
+      });
+      riga.querySelector('.btn-annulla-modifica').addEventListener('click', () => {
+        vistaNormale.style.display = "flex";
+        vistaModifica.style.display = "none";
+      });
+      riga.querySelector('.btn-rimuovi').addEventListener('click', () => rimuoviTipo(indice));
+      riga.querySelector('.btn-salva-modifica').addEventListener('click', () => {
+        const nuovoNome = riga.querySelector('.input-nome').value.trim();
+        const nuovaIcona = riga.querySelector('.input-icona').value.trim();
+        const nuovoColore = riga.querySelector('.input-colore').value;
+        modificaTipo(indice, nuovoNome, nuovaIcona, nuovoColore);
+      });
+
+      contenitore.appendChild(riga);
+    });
+  }
+
+  async function modificaTipo(indice, nuovoNome, nuovaIcona, nuovoColore) {
+    if (!nuovoNome || !nuovaIcona) {
+      alert("Nome e icona non possono essere vuoti.");
+      return;
+    }
+
+    const tipiAggiornati = [...(datiViaggio.tipiPersonalizzati || [])];
+    tipiAggiornati[indice] = { nome: nuovoNome, icona: nuovaIcona, colore: nuovoColore };
+
+    await aggiornaViaggio(viaggioId, { tipiPersonalizzati: tipiAggiornati });
+    datiViaggio.tipiPersonalizzati = tipiAggiornati;
+    disegnaTipiPersonalizzati();
+  }
+
+  document.getElementById('btn-aggiungi-tipo').addEventListener('click', async () => {
+    const nome = document.getElementById('nuovo-tipo-nome').value.trim();
+    const icona = document.getElementById('nuovo-tipo-icona').value.trim();
+    const colore = document.getElementById('nuovo-tipo-colore').value;
+
+    if (!nome || !icona) {
+      alert("Inserisci nome e icona (un'emoji).");
+      return;
+    }
+
+    const nuovoTipo = { nome, icona, colore };
+    const tipiAggiornati = [...(datiViaggio.tipiPersonalizzati || []), nuovoTipo];
+
+    await aggiornaViaggio(viaggioId, { tipiPersonalizzati: tipiAggiornati });
+    datiViaggio.tipiPersonalizzati = tipiAggiornati;
+
+    document.getElementById('nuovo-tipo-nome').value = "";
+    document.getElementById('nuovo-tipo-icona').value = "";
+    disegnaTipiPersonalizzati();
+  });
+
+  async function rimuoviTipo(indice) {
+    if (!confirm("Rimuovere questo tipo personalizzato?")) return;
+
+    const tipiAggiornati = (datiViaggio.tipiPersonalizzati || []).filter((_, i) => i !== indice);
+    await aggiornaViaggio(viaggioId, { tipiPersonalizzati: tipiAggiornati });
+    datiViaggio.tipiPersonalizzati = tipiAggiornati;
+    disegnaTipiPersonalizzati();
+  }
+
+  // --- Backup: esporta questo viaggio in un file JSON ---
+  //
+  // Il file contiene il documento viaggio + tutte le sue tappe (foto incluse
+  // in base64). E' l'unico modo per recuperare il viaggio se il dispositivo
+  // si perde o l'app viene disinstallata: qui non c'e' alcun cloud.
+
+  document.getElementById('btn-esporta-backup').addEventListener('click', async () => {
+    const bottone = document.getElementById('btn-esporta-backup');
+    bottone.textContent = "Preparo il backup...";
+
+    try {
+      const tappe = await ottieniTappePerViaggio(viaggioId);
+      const pacchettoBackup = {
+        formatoBackup: "i-miei-viaggi-v1",
+        esportatoIl: new Date().toISOString(),
+        viaggio: datiViaggio,
+        tappe
+      };
+
+      const nomeFileSicuro = (datiViaggio.nome || "viaggio").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const nomeFile = `backup-${nomeFileSicuro}-${new Date().toISOString().slice(0, 10)}.json`;
+
+      const blob = new Blob([JSON.stringify(pacchettoBackup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = nomeFile;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      await registraBackupEsportato(viaggioId);
+      datiViaggio.ultimoBackup = new Date().toISOString();
+      aggiornaInfoUltimoBackup();
+
+      bottone.textContent = "⬇️ Esporta backup di questo viaggio";
+    } catch (err) {
+      console.error("Errore esportazione backup:", err);
+      alert("Errore durante l'esportazione del backup. Riprova.");
+      bottone.textContent = "⬇️ Esporta backup di questo viaggio";
+    }
+  });
+
+  // --- Elimina viaggio ---
+  //
+  // Avviso a due livelli deciso il 31/07/2026: se non e' mai stato esportato
+  // un backup, l'avviso e' rafforzato. In entrambi i casi serve comunque
+  // digitare il nome del viaggio per confermare (non basta un click).
+
+  document.getElementById('btn-elimina-viaggio').addEventListener('click', async () => {
+    let messaggioAvviso;
+    if (!datiViaggio.ultimoBackup) {
+      messaggioAvviso = `Non hai mai esportato un backup di "${datiViaggio.nome}". Se lo elimini ora, andrà perso per sempre.\n\nPer confermare, scrivi il nome del viaggio:`;
+    } else {
+      const d = new Date(datiViaggio.ultimoBackup);
+      messaggioAvviso = `Stai per eliminare "${datiViaggio.nome}". Hai esportato un backup il ${d.toLocaleDateString('it-IT')}: le tappe aggiunte dopo quella data andranno perse.\n\nPer confermare, scrivi il nome del viaggio:`;
+    }
+
+    const conferma = prompt(messaggioAvviso);
+    if (conferma !== datiViaggio.nome) {
+      if (conferma !== null) alert("Nome non corrispondente. Eliminazione annullata.");
+      return;
+    }
+
+    await eliminaViaggio(viaggioId);
+    window.location.href = "index.html";
+  });
+</script>
+
+</body>
+</html>
